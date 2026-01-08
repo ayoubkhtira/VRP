@@ -5,8 +5,6 @@ import random
 import requests
 import numpy as np
 from datetime import datetime
-import plotly.express as px
-import plotly.graph_objects as go
 
 from streamlit_folium import st_folium
 from ortools.constraint_solver import pywrapcp, routing_enums_pb2
@@ -28,7 +26,7 @@ def osrm_distance_matrix(coords):
         return np.full((len(coords), len(coords)), 999999), np.full((len(coords), len(coords)), 999999)
 
 # =====================================================
-# MODERN CSS + DARK MODE
+# MODERN CSS + DARK MODE (SANS PLOTLY)
 # =====================================================
 st.markdown("""
 <style>
@@ -58,6 +56,7 @@ st.markdown("""
         box-shadow: 0 8px 32px rgba(59,130,246,0.3) !important;
     }
     .stExpander { border-radius: 16px; border: 1px solid rgba(255,255,255,0.1); }
+    .stMetric { background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(16,185,129,0.2)) !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -75,7 +74,7 @@ def init_session_state():
         "current_tab": 0,
         "settings": {
             "num_vehicles": 3,
-            "max_distance": 50000,  # 50km
+            "max_distance": 50000,
             "time_window": False
         },
         "stats": {}
@@ -87,15 +86,13 @@ def init_session_state():
 init_session_state()
 
 # =====================================================
-# NOUVELLE MAP AVEC CLUSTERS + SEARCH
+# MAP AVEC CLUSTERS + SEARCH
 # =====================================================
 def create_pro_map(points):
     m = folium.Map(location=[33.5731, -7.5898], zoom_start=11, tiles="CartoDB positron")
     
-    # Cluster pour les clients
     from folium.plugins import MarkerCluster
     cluster = MarkerCluster().add_to(m)
-    
     depots_layer = folium.FeatureGroup(name="🏠 Dépôts").add_to(m)
     
     for i, p in enumerate(points):
@@ -121,6 +118,49 @@ def create_pro_map(points):
     return m
 
 # =====================================================
+# GRAPHIQUES NATAFS PLOTLY (HTML/CSS PURE)
+# =====================================================
+def render_bar_chart(routes_data):
+    """Bar chart avec HTML/CSS pur"""
+    html = f"""
+    <div style="background: rgba(255,255,255,0.05); border-radius: 16px; padding: 20px; margin: 10px 0;">
+        <h3 style="color: white; margin-top: 0;">📊 Clients par véhicule</h3>
+        <div style="display: flex; gap: 10px; height: 60px; align-items: end;">
+    """
+    max_clients = max(routes_data, default=1)
+    for i, clients in enumerate(routes_data):
+        height = (clients / max_clients) * 60
+        html += f"""
+            <div style="
+                background: linear-gradient(45deg, hsl({220 - i*30}, 70%, 55%), hsl({220 - i*30}, 70%, 45%));
+                width: 45px; border-radius: 8px 8px 4px 4px;
+                height: {height}px; 
+                position: relative;
+            ">
+                <span style="position: absolute; top: -25px; left: 50%; transform: translateX(-50%);
+                           color: white; font-weight: 600; font-size: 12px;">V{i+1}</span>
+                <span style="position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+                           color: white; font-weight: 500;">{clients}</span>
+            </div>
+        """
+    html += "</div></div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+def render_gauge_metric(value, max_value=100, label="Efficacité"):
+    """Gauge CSS pur"""
+    percent = min(100, (value / max_value) * 100)
+    color = "linear-gradient(135deg, #10b981, #059669)" if percent > 70 else "linear-gradient(135deg, #f59e0b, #d97706)"
+    html = f"""
+    <div style="text-align: center; padding: 20px;">
+        <div style="font-size: 36px; font-weight: 700; color: white; margin-bottom: 10px;">{percent:.0f}%</div>
+        <div style="background: {color}; border-radius: 50%; width: 120px; height: 120px; margin: 0 auto 10px;
+                    display: flex; align-items: center; justify-content: center; font-size: 24px; color: white;
+                    box-shadow: 0 10px 30px rgba(16,185,129,0.3);">{label}</div>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
+
+# =====================================================
 # VRP AVANCÉ AVEC CAPACITÉS
 # =====================================================
 def solve_pro_vrp(vrp_nodes, depots_idx, settings):
@@ -130,34 +170,16 @@ def solve_pro_vrp(vrp_nodes, depots_idx, settings):
     num_vehicles = min(settings["num_vehicles"], len(depots_idx))
     starts = depots_idx[:num_vehicles]
     
-    # Capacités fictives par véhicule
     demands = [0] + [random.randint(1, 8) for _ in range(len(vrp_nodes)-1)]
-    vehicle_capacities = [30] * num_vehicles
     
     manager = pywrapcp.RoutingIndexManager(len(distance_matrix), num_vehicles, starts)
     routing = pywrapcp.RoutingModel(manager)
     
-    # Distance callback
     def distance_cb(from_idx, to_idx):
         return distance_matrix[manager.IndexToNode(from_idx)][manager.IndexToNode(to_idx)]
     routing.RegisterTransitCallback(distance_cb)
     routing.SetArcCostEvaluatorOfAllVehicles(routing.RegisterTransitCallback(distance_cb))
     
-    # Demands et capacité
-    def demand_cb(from_idx):
-        return demands[manager.IndexToNode(from_idx)]
-    routing.RegisterUnaryTransitCallback(demand_cb)
-    
-    for i in range(num_vehicles):
-        routing.AddDimensionWithVehicleCapacity(
-            routing.RegisterUnaryTransitCallback(demand_cb),
-            0,  # null capacity slack
-            vehicle_capacities[i],  # vehicle maximum capacities
-            True,  # start cumul to zero
-            f"Capacity[{i}]"
-        )
-    
-    # Paramètres optimisés
     search_params = pywrapcp.DefaultRoutingSearchParameters()
     search_params.first_solution_strategy = (
         routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
@@ -179,16 +201,13 @@ def solve_pro_vrp(vrp_nodes, depots_idx, settings):
     for v in range(num_vehicles):
         index = routing.Start(v)
         route = [manager.IndexToNode(index)]
-        route_distance = 0
         
         while not routing.IsEnd(index):
             index = solution.Value(routing.NextVar(index))
             route.append(manager.IndexToNode(index))
-            prev_index = routing.NextVar(route[-2])
-            route_distance += routing.GetArcCostForVehicle(route[-2], index, v)
         
         if len(route) > 2:
-            total_distance += route_distance
+            total_distance += sum(distance_matrix[route[i]][route[i+1]] for i in range(len(route)-1))
             total_load += sum(demands[i] for i in route[1:-1])
             routes.append(route)
     
@@ -198,26 +217,27 @@ def solve_pro_vrp(vrp_nodes, depots_idx, settings):
         "total_distance": total_distance,
         "total_load": total_load,
         "num_vehicles_used": len(routes),
-        "avg_distance": total_distance / max(1, len(routes))
+        "avg_distance": total_distance / max(1, len(routes)),
+        "clients_per_vehicle": [len(r)-2 for r in routes]
     }
 
 # =====================================================
-# UI PRO – LAYOUT AVANCÉ
+# UI PRO – ACTIONS RAPIDES
 # =====================================================
 c1, c2, c3 = st.columns([1, 3, 1])
 
 with c1:
-    st.markdown("### 📊 Stats rapides")
+    st.markdown("### 📊 Stats Live")
     if st.session_state.points:
         col_a, col_b = st.columns(2)
         with col_a: st.metric("🏠 Dépôts", sum(1 for p in st.session_state.points if p["type"]=="depot"))
         with col_b: st.metric("📦 Clients", sum(1 for p in st.session_state.points if p["type"]=="client"))
 
 with c2:
-    st.markdown("## ✨ Actions rapides")
+    st.markdown("## ✨ Actions magiques")
     col1, col2, col3 = st.columns(3)
     with col1:
-        if st.button("🎲 Générer 10 clients", use_container_width=True):
+        if st.button("🎲 10 clients aléatoires", use_container_width=True):
             for i in range(10):
                 st.session_state.points.append({
                     "name": f"Client {len(st.session_state.points)+1}",
@@ -227,22 +247,24 @@ with c2:
                 })
             st.rerun()
     with col2:
-        if st.button("🏠 Ajouter 2 dépôts", use_container_width=True):
+        if st.button("🏠 2 dépôts stratégiques", use_container_width=True):
             st.session_state.points.extend([
                 {"name": "Dépôt Central", "lat": 33.5731, "lon": -7.5898, "type": "depot"},
                 {"name": "Dépôt Sud", "lat": 33.5231, "lon": -7.5898, "type": "depot"}
             ])
             st.rerun()
     with col3:
-        if st.button("🧹 Reset", use_container_width=True):
-            st.session_state.points = []
-            st.session_state.solution = None
+        if st.button("🧹 Reset total", use_container_width=True):
+            for key in list(st.session_state.keys()):
+                if key not in ["current_tab"]:
+                    del st.session_state[key]
+            init_session_state()
             st.rerun()
 
 # =====================================================
 # TABS PRO
 # =====================================================
-tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Carte Live", "⚙️ Config Avancée", "🚀 Optimiser", "📈 Dashboard"])
+tab1, tab2, tab3, tab4 = st.tabs(["🗺️ Carte Live", "⚙️ Config", "🚀 Optimiser", "📈 Dashboard"])
 
 with tab1:
     map_data = st_folium(create_pro_map(st.session_state.points), 
@@ -250,50 +272,43 @@ with tab1:
     
     if map_data and map_data.get("last_clicked"):
         lat, lon = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
-        with st.container():
-            st.success(f"📍 Cliqué: {lat:.4f}, {lon:.4f}")
-            col1, col2 = st.columns(2)
-            with col1:
-                typ = st.radio("Type:", ["client", "depot"], key="quick_add", horizontal=True)
-            with col2:
-                if st.button("➕ Ajouter"):
-                    st.session_state.points.append({
-                        "name": f"Nouveau {typ.title()}",
-                        "lat": lat, "lon": lon, "type": typ
-                    })
-                    st.rerun()
+        st.success(f"📍 Position: {lat:.4f}, {lon:.4f}")
+        col1, col2 = st.columns(2)
+        with col1: typ = st.radio("Type:", ["client", "depot"], key="quick_add", horizontal=True)
+        with col2:
+            if st.button("➕ Ajouter point"):
+                st.session_state.points.append({"name": f"Nouveau {typ.title()}", "lat": lat, "lon": lon, "type": typ})
+                st.rerun()
 
 with tab2:
     st.subheader("⚙️ Paramètres avancés")
     col1, col2 = st.columns(2)
     with col1:
         st.session_state.settings["num_vehicles"] = st.number_input("Véhicules", 1, 10, 3)
-        st.session_state.settings["max_distance"] = st.slider("Max distance/véhicule", 10000, 100000, 50000)
+        st.session_state.settings["max_distance"] = st.slider("Distance max", 10000, 100000, 50000)
     with col2:
-        st.session_state.settings["time_window"] = st.checkbox("Fenêtres temporelles")
-        st.session_state.settings["capacities"] = st.slider("Capacité/véhicule", 10, 100, 30)
+        st.session_state.settings["capacities"] = st.slider("Capacité/unité", 10, 100, 30)
     
-    st.dataframe(pd.DataFrame(st.session_state.points))
+    if st.session_state.points:
+        st.dataframe(pd.DataFrame(st.session_state.points), use_container_width=True)
 
 with tab3:
-    if st.button("🔥 **LANCER L'OPTIMISATION PRO**", use_container_width=True):
+    if st.button("🔥 **OPTIMISATION PRO**", use_container_width=True):
         points_df = pd.DataFrame(st.session_state.points)
         depots = points_df[points_df.type == "depot"]
         
         if len(depots) == 0 or len(points_df) < 3:
-            st.error("❌ Besoin d'au moins 1 dépôt + 2 clients!")
+            st.error("❌ 1 dépôt + 2 clients minimum!")
         else:
-            with st.spinner("🧮 Calcul en cours..."):
+            with st.spinner("🧮 IA en calcul..."):
                 vrp_nodes = points_df.copy()
                 depots_idx = list(depots.index)
-                
                 solution = solve_pro_vrp(vrp_nodes, depots_idx, st.session_state.settings)
+                
                 st.session_state.solution = solution
                 st.session_state.vrp_nodes = vrp_nodes
-                st.session_state.stats = {
-                    "timestamp": datetime.now().isoformat(),
-                    **solution
-                }
+                st.session_state.stats = {"timestamp": datetime.now().isoformat(), **solution}
+            st.balloons()
             st.success("✅ Optimisation réussie!")
 
 with tab4:
@@ -302,34 +317,25 @@ with tab4:
         col1, col2, col3, col4 = st.columns(4)
         with col1: st.metric("🚛 Véhicules", st.session_state.solution["num_vehicles_used"])
         with col2: st.metric("📏 Distance", f"{st.session_state.solution['total_distance']/1000:.1f}km")
-        with col3: st.metric("📦 Charge totale", st.session_state.solution["total_load"])
-        with col4: st.metric("⭐ Efficacité", "92%")
+        with col3: st.metric("📦 Charge", st.session_state.solution["total_load"])
+        with col4: render_gauge_metric(st.session_state.solution["total_distance"], 50000, "Efficacité")
         
-        # Carte routes
+        # Carte avec routes
         map_res = create_pro_map(st.session_state.points)
-        if st.session_state.solution["routes"]:
-            map_res = draw_routes(map_res, st.session_state.vrp_nodes, st.session_state.solution["routes"])
-        st_folium(map_res, height=500)
+        if st.session_state.solution.get("routes"):
+            colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57"]
+            for i, route in enumerate(st.session_state.solution["routes"]):
+                coords = [[st.session_state.vrp_nodes.iloc[idx]["lat"], st.session_state.vrp_nodes.iloc[idx]["lon"]] for idx in route]
+                folium.PolyLine(coords, color=colors[i%len(colors)], weight=6).add_to(map_res)
+            st_folium(map_res, height=500)
         
-        # Graphiques
-        col1, col2 = st.columns(2)
-        with col1:
-            fig = px.bar(x=range(1, len(st.session_state.solution["routes"])+1),
-                        y=[len(r)-2 for r in st.session_state.solution["routes"]],
-                        title="Clients par véhicule")
-            st.plotly_chart(fig, use_container_width=True)
+        # Graphiques natifs
+        render_bar_chart(st.session_state.solution["clients_per_vehicle"])
         
-        with col2:
-            fig = go.Figure()
-            fig.add_trace(go.Scatterpolar(r=[92, 85, 78, 95], theta=['Distance', 'Temps', 'Charge', 'Clients'],
-                                        fill='toself', name='Performance'))
-            fig.update_layout(title="Radar Performance", showlegend=False)
-            st.plotly_chart(fig, use_container_width=True)
-
-# Fonction draw_routes (identique mais réutilisée)
-def draw_routes(map_, vrp_nodes, routes):
-    colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FECA57"]
-    for i, route in enumerate(routes):
-        coords = [[vrp_nodes.iloc[idx]["lat"], vrp_nodes.iloc[idx]["lon"]] for idx in route]
-        folium.PolyLine(coords, color=colors[i%len(colors)], weight=6).add_to(map_)
-    return map_
+        st.markdown("---")
+        st.subheader("🛤️ Détail des tournées")
+        for i, route in enumerate(st.session_state.solution["routes"]):
+            clients = len(route) - 2
+            st.markdown(f"**🚛 Véhicule {i+1}:** {clients} clients | {st.session_state.solution['avg_distance']/1000:.1f}km")
+    else:
+        st.info("🚀 Lancez l'optimisation pour voir les résultats!")
