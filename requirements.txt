@@ -1,27 +1,6 @@
-requirements.txt
-================
-
-# CORE MRP/CBN Pro v3.0
 streamlit==1.38.0
 pandas==2.2.2
 plotly==5.24.0
-numpy==2.1.1
-
-# PRÉVISION IA
-prophet==1.1.5
-pystan==3.9.0
-
-# EXCEL IMPORT/EXPORT
+numpy==1.26.4
 openpyxl==3.1.5
-xlrd==2.0.1
-
-# RAPPORTS PDF
-reportlab==4.2.2
 Pillow==10.4.0
-
-# DONNÉES & VISUALISATION
-matplotlib==3.9.2
-
-# PRODUCTION (optionnel)
-# fastapi==0.115.0
-# uvicorn==0.30.6
