@@ -1,422 +1,892 @@
-"""
-🧠 MRP/CBN Pro v3.12 - STYLE HOMOGÈNE PARFAIT ✅
-🎨 Design uniforme partout + Navigation native
-"""
-
 import streamlit as st
-from dataclasses import dataclass
-from datetime import date, timedelta
-from typing import Dict, List, Optional
-import pandas as pd
-import plotly.express as px
-import numpy as np
-import io
-import openpyxl
+import streamlit.components.v1 as components
 
-# ✅ CLASSES DÉFINIES EN PREMIER
-@dataclass
-class Article:
-    code: str
-    name: str
-    type: str
-    lead_time: int
-    unit_cost: float
-    supplier: Optional[str] = None
+st.set_page_config(page_title="VRP Route Optimizer", layout="wide")
 
-@dataclass
-class BOM:
-    parent: str
-    component: str
-    quantity: float
+html_content = <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VRP Route Optimizer - Delivery Route Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --color-white: rgba(255, 255, 255, 1);
+            --color-black: rgba(0, 0, 0, 1);
+            --color-cream-50: rgba(252, 252, 249, 1);
+            --color-cream-100: rgba(255, 255, 253, 1);
+            --color-gray-200: rgba(245, 245, 245, 1);
+            --color-gray-300: rgba(167, 169, 169, 1);
+            --color-gray-400: rgba(119, 124, 124, 1);
+            --color-slate-500: rgba(98, 108, 113, 1);
+            --color-brown-600: rgba(94, 82, 64, 1);
+            --color-charcoal-700: rgba(31, 33, 33, 1);
+            --color-charcoal-800: rgba(38, 40, 40, 1);
+            --color-slate-900: rgba(19, 52, 59, 1);
+            --color-teal-300: rgba(50, 184, 198, 1);
+            --color-teal-400: rgba(45, 166, 178, 1);
+            --color-teal-500: rgba(33, 128, 141, 1);
+            --color-teal-600: rgba(29, 116, 128, 1);
+            --color-teal-700: rgba(26, 104, 115, 1);
+            --color-red-400: rgba(255, 84, 89, 1);
+            --color-red-500: rgba(192, 21, 47, 1);
+            --color-orange-400: rgba(230, 129, 97, 1);
+            --color-orange-500: rgba(168, 75, 47, 1);
 
-@dataclass
-class Supplier:
-    sid: str
-    name: str
-    lead_time: int
+            --color-brown-600-rgb: 94, 82, 64;
+            --color-teal-500-rgb: 33, 128, 141;
+            --color-slate-900-rgb: 19, 52, 59;
+            --color-red-500-rgb: 192, 21, 47;
+            --color-orange-500-rgb: 168, 75, 47;
 
-@dataclass
-class Client:
-    cid: str
-    name: str
+            --color-bg-1: rgba(59, 130, 246, 0.08);
+            --color-bg-2: rgba(245, 158, 11, 0.08);
+            --color-bg-3: rgba(34, 197, 94, 0.08);
+            --color-bg-4: rgba(239, 68, 68, 0.08);
+            --color-bg-5: rgba(147, 51, 234, 0.08);
+            --color-bg-6: rgba(249, 115, 22, 0.08);
+            --color-bg-7: rgba(236, 72, 153, 0.08);
+            --color-bg-8: rgba(6, 182, 212, 0.08);
 
-@dataclass
-class Demand:
-    client: str
-    article: str
-    qty: float
-    due_date: date
+            --color-background: var(--color-cream-50);
+            --color-surface: var(--color-cream-100);
+            --color-text: var(--color-slate-900);
+            --color-text-secondary: var(--color-slate-500);
+            --color-primary: var(--color-teal-500);
+            --color-primary-hover: var(--color-teal-600);
+            --color-primary-active: var(--color-teal-700);
+            --color-secondary: rgba(var(--color-brown-600-rgb), 0.12);
+            --color-secondary-hover: rgba(var(--color-brown-600-rgb), 0.2);
+            --color-secondary-active: rgba(var(--color-brown-600-rgb), 0.25);
+            --color-border: rgba(var(--color-brown-600-rgb), 0.2);
+            --color-btn-primary-text: var(--color-cream-50);
+            --color-card-border: rgba(var(--color-brown-600-rgb), 0.12);
+            --color-card-border-inner: rgba(var(--color-brown-600-rgb), 0.12);
+            --color-error: var(--color-red-500);
+            --color-success: var(--color-teal-500);
+            --color-warning: var(--color-orange-500);
+            --color-info: var(--color-slate-500);
+            --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
 
-@dataclass
-class Stock:
-    article: str
-    qty: float
-    safety: float
+            --focus-ring: 0 0 0 3px var(--color-focus-ring);
+            --focus-outline: 2px solid var(--color-primary);
 
-@dataclass
-class Machine:
-    code: str
-    name: str
-    capacity_hours: float
-    efficiency: float
+            --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            --font-family-mono: 'Courier New', monospace;
+            --font-size-sm: 12px;
+            --font-size-base: 14px;
+            --font-size-md: 14px;
+            --font-size-lg: 16px;
+            --font-size-xl: 18px;
+            --font-size-2xl: 20px;
+            --font-size-3xl: 24px;
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 550;
+            --font-weight-bold: 600;
+            --line-height-tight: 1.2;
+            --line-height-normal: 1.5;
 
-# Config Streamlit
-st.set_page_config(
-    page_title="🧠 MRP Pro v3.12", 
-    page_icon="🧠",
-    layout="wide"
-)
+            --space-4: 4px;
+            --space-6: 6px;
+            --space-8: 8px;
+            --space-12: 12px;
+            --space-16: 16px;
+            --space-20: 20px;
+            --space-24: 24px;
+            --space-32: 32px;
 
-# 🎨 CSS UNIFORME MASTER (STYLE HOMOGÈNE TOUT)
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+            --radius-sm: 6px;
+            --radius-base: 8px;
+            --radius-md: 10px;
+            --radius-lg: 12px;
+            --radius-full: 9999px;
 
-/* BASE HOMOGÈNE */
-* { font-family: 'Inter', sans-serif; }
-body { 
-    background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%); 
-    color: #e2e8f0; margin: 0; padding: 0;
-}
-h1, h2, h3, h4, h5, h6 { 
-    color: #f8fafc !important; 
-    font-family: 'Orbitron', monospace !important; 
-    text-shadow: 0 2px 10px rgba(102,126,234,0.5);
-}
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
 
-/* HEADER PRO */
-.main-header {
-    padding: 2.5rem; background: linear-gradient(135deg, rgba(10,10,16,0.95), rgba(26,26,46,0.95));
-    backdrop-filter: blur(25px); border-radius: 24px; border-left: 8px solid #667eea; 
-    box-shadow: 0 30px 60px rgba(0,0,0,0.8); margin-bottom: 2.5rem; position: relative;
-}
-.main-header::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(45deg, rgba(102,126,234,0.2), rgba(118,75,162,0.3), rgba(240,147,251,0.2));
-    animation: gradientShift 8s ease infinite; z-index: 1; border-radius: 24px;
-}
-.header-content { position: relative; z-index: 2; text-align: center; }
-.header-title {
-    font-size: 3rem; font-weight: 700; letter-spacing: 6px; text-transform: uppercase;
-    background: linear-gradient(45deg, #667eea, #764ba2, #f093fb, #667eea);
-    background-size: 400% 400%; -webkit-background-clip: text; background-clip: text; 
-    -webkit-text-fill-color: transparent; animation: gradientMove 5s ease infinite;
-}
+            --duration-fast: 150ms;
+            --duration-normal: 250ms;
+            --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
+        }
 
-/* NAVIGATION CENTRÉE */
-.nav-container { display: flex; justify-content: center; align-items: center; padding: 3rem 0; }
-.nav-main-btn {
-    background: linear-gradient(45deg, #667eea, #764ba2) !important; color: white !important;
-    border: none !important; border-radius: 50px !important; padding: 1.5rem 3.5rem !important;
-    font-weight: 700 !important; font-size: 1.3rem !important; letter-spacing: 3px !important;
-    box-shadow: 0 25px 60px rgba(102,126,234,0.7) !important; transition: all 0.4s cubic-bezier(0.4,0,0.2,1) !important;
-    text-transform: uppercase !important; width: 300px !important; font-family: 'Orbitron', monospace !important;
-}
-.nav-main-btn:hover { 
-    transform: translateY(-10px) scale(1.08) !important; 
-    box-shadow: 0 35px 80px rgba(102,126,234,0.9) !important;
-}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-/* BOUTONS NAVIGATION UNIFORMES */
-.stButton > button { 
-    background: linear-gradient(45deg, rgba(102,126,234,0.25), rgba(118,75,162,0.25)) !important;
-    color: #f8fafc !important; border: 2px solid rgba(102,126,234,0.3) !important; 
-    border-radius: 16px !important; padding: 1.2rem 1.8rem !important; 
-    margin: 0.5rem 0 !important; width: 100% !important; font-weight: 600 !important; 
-    font-size: 1.1rem !important; transition: all 0.35s cubic-bezier(0.4,0,0.2,1) !important;
-    text-align: left !important; backdrop-filter: blur(10px);
-}
-.stButton > button:hover { 
-    background: linear-gradient(45deg, #667eea, #764ba2) !important; 
-    transform: translateX(8px) !important; box-shadow: 0 15px 35px rgba(102,126,234,0.6) !important;
-    border-color: rgba(255,255,255,0.4) !important;
-}
+        body {
+            font-family: var(--font-family-base);
+            background-color: var(--color-background);
+            color: var(--color-text);
+            line-height: var(--line-height-normal);
+        }
 
-/* BOUTONS PRINCIPAUX */
-button[kind="primary"] {
-    background: linear-gradient(45deg, #10b981, #059669) !important; 
-    border: 2px solid #10b981 !important;
-}
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: var(--space-16);
+        }
 
-/* MÉTRIQUES UNIFORMES */
-.metric-card { 
-    background: linear-gradient(145deg, rgba(102,126,234,0.2), rgba(118,75,162,0.2)) !important;
-    backdrop-filter: blur(20px); color: white !important; padding: 2rem !important; 
-    border-radius: 20px !important; text-align: center !important; 
-    border: 2px solid rgba(255,255,255,0.2) !important; 
-    box-shadow: 0 20px 40px rgba(102,126,234,0.4) !important;
-    margin: 1rem !important; transition: all 0.3s ease !important;
-}
-.metric-card:hover { transform: scale(1.05) !important; box-shadow: 0 30px 60px rgba(102,126,234,0.6) !important; }
-.metric-value { font-size: 3rem !important; font-weight: 700 !important; margin-bottom: 0.5rem !important; }
-.metric-label { font-size: 1rem !important; opacity: 0.95 !important; font-weight: 500 !important; }
+        .header {
+            background: linear-gradient(135deg, #2f8696 0%, #1e5a69 100%);
+            color: white;
+            padding: var(--space-24) var(--space-16);
+            border-radius: var(--radius-lg);
+            margin-bottom: var(--space-24);
+            box-shadow: var(--shadow-md);
+        }
 
-/* INPUTS UNIFORMES */
-.stTextInput > div > div > input, .stNumberInput > div > div > input, 
-.stSelectbox > div > div > select, .stDateInput > div > div > input { 
-    background: rgba(255,255,255,0.95) !important; border-radius: 16px !important; 
-    border: 2px solid rgba(102,126,234,0.3) !important; padding: 1.2rem !important; 
-    font-weight: 500 !important; color: #1e293b !important;
-    transition: all 0.3s ease !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important;
-}
-.stTextInput > div > div > input:focus, .stNumberInput > div > div > input:focus { 
-    border-color: #667eea !important; box-shadow: 0 0 0 4px rgba(102,126,234,0.2) !important;
-    transform: scale(1.02) !important;
-}
+        .header h1 {
+            font-size: var(--font-size-3xl);
+            margin-bottom: var(--space-8);
+            font-weight: var(--font-weight-bold);
+        }
 
-/* DATAFRAMES */
-.stDataFrame { 
-    background: rgba(255,255,255,0.95) !important; border-radius: 20px !important; 
-    overflow: hidden !important; box-shadow: 0 20px 50px rgba(0,0,0,0.2) !important;
-    border: 1px solid rgba(255,255,255,0.3) !important;
-}
+        .header p {
+            opacity: 0.9;
+            font-size: var(--font-size-lg);
+        }
 
-/* ALERTES */
-.success-box { 
-    background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.2)) !important;
-    backdrop-filter: blur(15px); color: white !important; padding: 1.5rem !important; 
-    border-radius: 16px !important; border-left: 6px solid #10b981 !important; 
-    margin: 1rem 0 !important; box-shadow: 0 10px 30px rgba(16,185,129,0.3) !important;
-}
-.error-box { 
-    background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.2)) !important;
-    backdrop-filter: blur(15px); color: white !important; padding: 1.5rem !important; 
-    border-radius: 16px !important; border-left: 6px solid #ef4444 !important; 
-    margin: 1rem 0 !important; box-shadow: 0 10px 30px rgba(239,68,68,0.3) !important;
-}
+        .main-layout {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: var(--space-16);
+        }
 
-/* TITRES HOMOGÈNES */
-h3 { color: #f8fafc !important; font-size: 1.8rem !important; margin-bottom: 1.5rem !important; }
+        @media (max-width: 1024px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
 
-/* ANIMATIONS */
-@keyframes gradientShift { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%}}
-@keyframes gradientMove { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%}}
-</style>
-""", unsafe_allow_html=True)
+        .sidebar {
+            background-color: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--space-16);
+            height: fit-content;
+            border: 1px solid var(--color-card-border);
+            box-shadow: var(--shadow-sm);
+        }
 
-# 🎨 HEADER
-st.markdown("""
-<div class="main-header">
-    <div class="header-content">
-        <h1 class="header-title">VRP SOLUTION <span>Pro</span></h1>
+        .sidebar-section {
+            margin-bottom: var(--space-24);
+        }
+
+        .sidebar-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .sidebar-title {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: var(--space-12);
+            color: var(--color-primary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group {
+            margin-bottom: var(--space-12);
+        }
+
+        .form-label {
+            display: block;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            margin-bottom: var(--space-6);
+            color: var(--color-text);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: var(--space-8) var(--space-12);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            font-size: var(--font-size-base);
+            background-color: var(--color-white);
+            color: var(--color-text);
+            font-family: var(--font-family-base);
+            transition: all var(--duration-fast) var(--ease-standard);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--color-primary);
+            box-shadow: var(--focus-ring);
+        }
+
+        .btn {
+            padding: var(--space-8) var(--space-16);
+            border: none;
+            border-radius: var(--radius-base);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            transition: all var(--duration-normal) var(--ease-standard);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-8);
+        }
+
+        .btn:focus-visible {
+            outline: none;
+            box-shadow: var(--focus-ring);
+        }
+
+        .btn--primary {
+            background-color: var(--color-primary);
+            color: var(--color-btn-primary-text);
+            width: 100%;
+        }
+
+        .btn--primary:hover {
+            background-color: var(--color-primary-hover);
+        }
+
+        .btn--primary:active {
+            background-color: var(--color-primary-active);
+        }
+
+        .btn--secondary {
+            background-color: var(--color-secondary);
+            color: var(--color-text);
+        }
+
+        .btn--secondary:hover {
+            background-color: var(--color-secondary-hover);
+        }
+
+        .btn--sm {
+            padding: var(--space-6) var(--space-12);
+            font-size: var(--font-size-sm);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .delivery-item {
+            background-color: var(--color-white);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            padding: var(--space-12);
+            margin-bottom: var(--space-8);
+            display: flex;
+            gap: var(--space-8);
+            align-items: flex-start;
+        }
+
+        .delivery-item-content {
+            flex: 1;
+        }
+
+        .delivery-item-name {
+            font-weight: var(--font-weight-semibold);
+            font-size: var(--font-size-base);
+            margin-bottom: var(--space-4);
+        }
+
+        .delivery-item-details {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-4);
+        }
+
+        .btn-small {
+            padding: var(--space-4) var(--space-8);
+            font-size: 11px;
+            background-color: var(--color-error);
+            color: white;
+            border: none;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--duration-fast) var(--ease-standard);
+        }
+
+        .btn-small:hover {
+            background-color: var(--color-red-400);
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-16);
+        }
+
+        .map-container {
+            background-color: var(--color-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--color-card-border);
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+            min-height: 500px;
+        }
+
+        #map {
+            width: 100%;
+            height: 500px;
+            border-radius: var(--radius-lg);
+        }
+
+        .results-panel {
+            background-color: var(--color-surface);
+            border-radius: var(--radius-lg);
+            padding: var(--space-16);
+            border: 1px solid var(--color-card-border);
+            box-shadow: var(--shadow-md);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-16);
+            margin-bottom: var(--space-16);
+        }
+
+        .result-card {
+            background-color: var(--color-white);
+            border-left: 4px solid var(--color-primary);
+            padding: var(--space-16);
+            border-radius: var(--radius-base);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .result-card-label {
+            font-size: var(--font-size-sm);
+            color: var(--color-text-secondary);
+            margin-bottom: var(--space-4);
+            font-weight: var(--font-weight-medium);
+        }
+
+        .result-card-value {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--color-primary);
+        }
+
+        .route-details {
+            background-color: var(--color-white);
+            border-radius: var(--radius-base);
+            padding: var(--space-16);
+            margin-top: var(--space-16);
+        }
+
+        .route-list {
+            list-style: none;
+            counter-reset: route-counter;
+        }
+
+        .route-item {
+            counter-increment: route-counter;
+            padding: var(--space-12) var(--space-16);
+            background-color: var(--color-bg-3);
+            margin-bottom: var(--space-8);
+            border-radius: var(--radius-base);
+            border-left: 3px solid var(--color-success);
+        }
+
+        .route-item::before {
+            content: counter(route-counter) ". ";
+            font-weight: var(--font-weight-bold);
+            color: var(--color-primary);
+        }
+
+        .info-message {
+            background-color: var(--color-bg-1);
+            border-left: 4px solid var(--color-info);
+            padding: var(--space-12) var(--space-16);
+            border-radius: var(--radius-base);
+            color: var(--color-text);
+            font-size: var(--font-size-sm);
+            margin-top: var(--space-16);
+        }
+
+        .tabs {
+            display: flex;
+            gap: var(--space-8);
+            border-bottom: 2px solid var(--color-border);
+            margin-bottom: var(--space-16);
+        }
+
+        .tab-btn {
+            padding: var(--space-8) var(--space-16);
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text-secondary);
+            transition: all var(--duration-fast) var(--ease-standard);
+        }
+
+        .tab-btn.active {
+            color: var(--color-primary);
+            border-bottom-color: var(--color-primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .leaflet-popup-content {
+            font-family: var(--font-family-base);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn var(--duration-normal) var(--ease-standard);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 VRP Route Optimizer</h1>
+            <p>Vehicle Routing Problem Solver - Optimize delivery routes with modern algorithms</p>
+        </div>
+
+        <div class="main-layout">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Depot Location</div>
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="number" id="depotLat" class="form-control" value="48.8566" step="0.0001" placeholder="Latitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="number" id="depotLon" class="form-control" value="2.3522" step="0.0001" placeholder="Longitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Depot Name</label>
+                        <input type="text" id="depotName" class="form-control" value="Depot" placeholder="Depot name">
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Add Delivery Point</div>
+                    <div class="form-group">
+                        <label class="form-label">Name</label>
+                        <input type="text" id="deliveryName" class="form-control" placeholder="e.g., Customer A">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Latitude</label>
+                        <input type="number" id="deliveryLat" class="form-control" step="0.0001" placeholder="Latitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Longitude</label>
+                        <input type="number" id="deliveryLon" class="form-control" step="0.0001" placeholder="Longitude">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Demand (kg)</label>
+                        <input type="number" id="deliveryDemand" class="form-control" value="1" min="0.1" step="0.1" placeholder="Weight">
+                    </div>
+                    <button class="btn btn--primary" onclick="addDelivery()">+ Add Delivery Point</button>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Delivery Points</div>
+                    <div id="deliveryList"></div>
+                    <button class="btn btn--secondary btn--sm" onclick="clearDeliveries()" style="width: 100%; margin-top: var(--space-8);">Clear All</button>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="sidebar-title">Optimization</div>
+                    <div class="form-group">
+                        <label class="form-label">Vehicle Capacity (kg)</label>
+                        <input type="number" id="vehicleCapacity" class="form-control" value="100" min="1" step="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Max Vehicles</label>
+                        <input type="number" id="maxVehicles" class="form-control" value="3" min="1" step="1">
+                    </div>
+                    <button class="btn btn--primary" onclick="optimizeRoutes()" style="font-size: 16px; font-weight: 600;">🔄 Optimize Routes</button>
+                </div>
+            </aside>
+
+            <!-- Main Content -->
+            <div class="content">
+                <div class="map-container">
+                    <div id="map"></div>
+                </div>
+
+                <div class="results-panel" id="resultsPanel" style="display: none;">
+                    <div class="tabs">
+                        <button class="tab-btn active" onclick="switchTab('summary')">Summary</button>
+                        <button class="tab-btn" onclick="switchTab('routes')">Route Details</button>
+                    </div>
+
+                    <div id="summary" class="tab-content active">
+                        <div class="results-grid" id="resultCardsContainer"></div>
+                        <div class="info-message">
+                            Routes optimized using nearest neighbor heuristic with 2-opt local search improvement.
+                        </div>
+                    </div>
+
+                    <div id="routes" class="tab-content">
+                        <div id="routesContainer"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
-""", unsafe_allow_html=True)
 
-# ✅ ÉTAT GLOBAL
-if 'state' not in st.session_state:
-    st.session_state.state = {
-        'articles': {}, 'boms': [], 'suppliers': {}, 'clients': {},
-        'demands': [], 'stocks': {}, 'machines': {}, 'mrp_results': pd.DataFrame()
-    }
-    st.session_state.current_tab = "📊 Dashboard"
-    st.session_state.show_nav = False
+    <script>
+        // Initialize Leaflet map
+        const map = L.map('map').setView([48.8566, 2.3522], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }).addTo(map);
 
-state = st.session_state.state
+        let markers = {};
+        let routePolylines = [];
+        let deliveries = [];
+        let depot = { lat: 48.8566, lon: 2.3522, name: 'Depot' };
 
-# 🆕 NAVIGATION CENTRÉE
-st.markdown('<div class="nav-container">', unsafe_allow_html=True)
-if st.button("🚀 NAVIGATION", key="nav_main_uniform"):
-    st.session_state.show_nav = not st.session_state.show_nav
-    st.rerun()
-st.markdown('</div>', unsafe_allow_html=True)
+        // Add delivery point
+        function addDelivery() {
+            const name = document.getElementById('deliveryName').value.trim();
+            const lat = parseFloat(document.getElementById('deliveryLat').value);
+            const lon = parseFloat(document.getElementById('deliveryLon').value);
+            const demand = parseFloat(document.getElementById('deliveryDemand').value);
 
-# 🆕 MENU NAVIGATION
-if st.session_state.show_nav:
-    st.markdown("---")
-    st.markdown("## 🚀 **MENU NAVIGATION**")
-    st.markdown("---")
-    
-    tabs = ["📊 Dashboard", "📦 Articles", "🏬 Stocks", "🧱 Nomenclatures", "📈 Demandes", "⚡ MRP", "📁 Export"]
-    
-    for tab_name in tabs:
-        if st.button(tab_name, key=f"nav_{tab_name.replace(' ','_')}"):
-            st.session_state.current_tab = tab_name
-            st.session_state.show_nav = False
-            st.rerun()
-    
-    if st.button("🚀 CALCULER MRP", key="nav_calc_mrp"):
-        st.session_state.show_nav = False
-        st.rerun()
+            if (!name || isNaN(lat) || isNaN(lon) || isNaN(demand)) {
+                alert('Please fill all fields with valid data');
+                return;
+            }
 
-# ✅ FONCTIONS MRP (IDENTIQUES)
-def explode_bom(article_code: str, qty: float, visited=None):
-    if visited is None: visited = set()
-    if article_code in visited: return {}
-    visited = visited.copy()
-    visited.add(article_code)
-    needs = {}
-    for bom in state['boms']:
-        if bom.parent == article_code:
-            required = qty * bom.quantity
-            needs[bom.component] = needs.get(bom.component, 0) + required
-            sub_needs = explode_bom(bom.component, required, visited)
-            for k, v in sub_needs.items():
-                needs[k] = needs.get(k, 0) + v
-    return needs
+            const delivery = { id: Date.now(), name, lat, lon, demand };
+            deliveries.push(delivery);
 
-def calculate_mrp():
-    results = []
-    for d in state['demands']:
-        gross_needs = {d.article: d.qty}
-        exploded = explode_bom(d.article, d.qty)
-        gross_needs.update(exploded)
-        for art_code, qty in gross_needs.items():
-            if art_code not in state['articles']: continue
-            art = state['articles'][art_code]
-            stock = state['stocks'].get(art_code, Stock(art_code, 0, 0))
-            net = max(qty - stock.qty + stock.safety, 0)
-            lead = art.lead_time
-            order_date = d.due_date - timedelta(days=lead)
-            results.append({
-                "Article": art.name, "Code": art_code, "Besoin Brut": qty,
-                "Stock": stock.qty, "Sécurité": stock.safety, "Besoin Net": net,
-                "Date Ordre": order_date.strftime('%Y-%m-%d'),
-                "Type": "🛒 OA" if art.type == "BRUT" else "🏭 OF",
-                "Coût": round(net * art.unit_cost, 2)
-            })
-    df = pd.DataFrame(results)
-    state['mrp_results'] = df.sort_values('Date Ordre') if not df.empty else df
-    return df
+            // Clear inputs
+            document.getElementById('deliveryName').value = '';
+            document.getElementById('deliveryLat').value = '';
+            document.getElementById('deliveryLon').value = '';
+            document.getElementById('deliveryDemand').value = '1';
 
-# ✅ NAVIGATION MRP
-if st.session_state.current_tab == "🚀 CALCULER MRP":
-    with st.spinner("🧮 Calcul MRP avec explosion BOM..."):
-        calculate_mrp()
-    st.success("✅ MRP calculé avec succès!")
-    st.session_state.current_tab = "📊 Dashboard"
-    st.rerun()
+            renderDeliveryList();
+            addMarkerToMap(delivery);
+        }
 
-# 🎨 ONGLETS HOMOGÈNES
-current_tab = st.session_state.current_tab
+        // Render delivery list
+        function renderDeliveryList() {
+            const container = document.getElementById('deliveryList');
+            container.innerHTML = '';
 
-if current_tab == "📊 Dashboard":
-    st.markdown("### 🎯 Vue d'ensemble")
-    col1, col2, col3, col4 = st.columns(4)
-    total_stock = sum(s.qty for s in state['stocks'].values())
-    
-    with col1: 
-        st.markdown(f'<div class="metric-card"><div class="metric-value">{len(state["demands"])}</div><div class="metric-label">📈 Demandes</div></div>', unsafe_allow_html=True)
-    with col2: 
-        st.markdown(f'<div class="metric-card"><div class="metric-value">{len(state["articles"])}</div><div class="metric-label">📦 Articles</div></div>', unsafe_allow_html=True)
-    with col3: 
-        st.markdown(f'<div class="metric-card"><div class="metric-value">{len(state["stocks"])}</div><div class="metric-label">🏬 Stocks</div></div>', unsafe_allow_html=True)
-    with col4: 
-        st.markdown(f'<div class="metric-card"><div class="metric-value">{total_stock:.0f}</div><div class="metric-label">📊 Total Stock</div></div>', unsafe_allow_html=True)
+            deliveries.forEach((delivery, index) => {
+                const div = document.createElement('div');
+                div.className = 'delivery-item';
+                div.innerHTML = `
+                    <div class="delivery-item-content">
+                        <div class="delivery-item-name">${delivery.name}</div>
+                        <div class="delivery-item-details">${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}</div>
+                        <div class="delivery-item-details">Demand: ${delivery.demand}kg</div>
+                    </div>
+                    <button class="btn-small" onclick="removeDelivery(${delivery.id})">Remove</button>
+                `;
+                container.appendChild(div);
+            });
+        }
 
-elif current_tab == "🏬 Stocks":  
-    st.markdown("### 🏬 Gestion des Stocks")
-    col1, col2, col3 = st.columns(3)
-    with col1: article = st.text_input("📦 Article")
-    with col2: quantity = st.number_input("📈 Quantité", min_value=0.0, value=0.0, format="%.2f")
-    with col3: safety_stock = st.number_input("🛡️ Stock sécurité", min_value=0.0, value=0.0, format="%.2f")
-    
-    if st.button("💾 METTRE À JOUR STOCK"):
-        if article and article in state['articles']:
-            state['stocks'][article] = Stock(article, float(quantity), float(safety_stock))
-            st.markdown('<div class="success-box">✅ Stock mis à jour!</div>', unsafe_allow_html=True)
-            st.rerun()
-        elif article:
-            st.markdown('<div class="error-box">❌ Article non trouvé!</div>', unsafe_allow_html=True)
-    
-    if state['stocks']:
-        st.markdown("### 📊 Stocks Actuels")
-        stock_list = []
-        for stock in state['stocks'].values():
-            art = state['articles'].get(stock.article, None)
-            stock_list.append({
-                'Article': stock.article, 'Nom': art.name if art else 'N/A',
-                'Stock': stock.qty, 'Sécurité': stock.safety,
-                'Disponible': stock.qty - stock.safety,
-                'Statut': '🟢 OK' if stock.qty >= stock.safety else '🔴 BAS'
-            })
-        stock_df = pd.DataFrame(stock_list)
-        def color_stocks(val):
-            return 'background-color: #fef2f2' if 'BAS' in str(val) else ''
-        st.dataframe(stock_df.style.applymap(color_stocks, subset=['Statut']), use_container_width=True)
-        
-        fig_stock = px.bar(stock_df, x='Article', y='Stock', color='Statut', title="📈 Niveau Stocks",
-                          color_discrete_map={'🟢 OK': '#10b981', '🔴 BAS': '#ef4444'})
-        st.plotly_chart(fig_stock, use_container_width=True)
+        // Remove delivery
+        function removeDelivery(id) {
+            deliveries = deliveries.filter(d => d.id !== id);
+            if (markers[id]) {
+                map.removeLayer(markers[id]);
+                delete markers[id];
+            }
+            renderDeliveryList();
+        }
 
-elif current_tab == "📦 Articles":
-    st.markdown("### 📦 Gestion Articles")
-    col1, col2 = st.columns(2)
-    with col1:
-        code = st.text_input("💾 Code")
-        art_type = st.selectbox("Type", ["BRUT", "COMPOSE"])
-    with col2:
-        name = st.text_input("📝 Nom")
-        lead = st.number_input("⏱️ Délai", value=5)
-        cost = st.number_input("💰 Coût", value=10.0)
-    
-    if st.button("➕ Ajouter"):
-        if code:
-            state['articles'][code] = Article(code, name or "N/A", art_type, int(lead), float(cost))
-            st.markdown('<div class="success-box">✅ Article ajouté!</div>', unsafe_allow_html=True)
-            st.rerun()
-    
-    if state['articles']:
-        st.markdown("### 📋 Liste Articles")
-        art_df = pd.DataFrame([{**vars(a)} for a in state['articles'].values()])
-        st.dataframe(art_df, use_container_width=True)
+        // Clear all deliveries
+        function clearDeliveries() {
+            if (deliveries.length === 0) return;
+            if (!confirm('Clear all delivery points?')) return;
+            
+            deliveries.forEach(d => {
+                if (markers[d.id]) {
+                    map.removeLayer(markers[d.id]);
+                    delete markers[d.id];
+                }
+            });
+            deliveries = [];
+            renderDeliveryList();
+            clearRoutes();
+        }
 
-elif current_tab == "🧱 Nomenclatures":
-    st.markdown("### 🧱 Nomenclatures")
-    col1, col2 = st.columns(2)
-    with col1: parent = st.text_input("👑 Parent")
-    with col2: 
-        component = st.text_input("🔧 Composant")
-        qty = st.number_input("📊 Qté", value=1.0)
-    
-    if st.button("➕ BOM"):
-        if parent and component:
-            state['boms'].append(BOM(parent, component, float(qty)))
-            st.markdown('<div class="success-box">✅ BOM ajouté!</div>', unsafe_allow_html=True)
-            st.rerun()
-    
-    if state['boms']:
-        st.dataframe(pd.DataFrame([{**vars(b)} for b in state['boms']]), use_container_width=True)
+        // Add marker to map
+        function addMarkerToMap(delivery) {
+            const marker = L.circleMarker([delivery.lat, delivery.lon], {
+                radius: 7,
+                fillColor: '#2f8696',
+                color: '#fff',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map);
 
-elif current_tab == "📈 Demandes":
-    st.markdown("### 📈 Demandes Clients")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1: client = st.text_input("👥 Client")
-    with col2: article = st.text_input("📦 Article")
-    with col3: qty = st.number_input("📊 Qté", value=10.0)
-    with col4: due = st.date_input("📅 Date", value=pd.Timestamp.now().date())
-    
-    if st.button("➕ Demande"):
-        if client and article:
-            state['demands'].append(Demand(client, article, float(qty), due))
-            st.markdown('<div class="success-box">✅ Demande ajoutée!</div>', unsafe_allow_html=True)
-            st.rerun()
-    
-    if state['demands']:
-        st.dataframe(pd.DataFrame([{**vars(d), 'due_date': d.due_date} for d in state['demands']]), use_container_width=True)
+            marker.bindPopup(`<b>${delivery.name}</b><br>Demand: ${delivery.demand}kg`);
+            markers[delivery.id] = marker;
+        }
 
-elif current_tab == "⚡ MRP":
-    st.markdown("### ⚡ Résultats MRP")
-    if not state['mrp_results'].empty:
-        st.dataframe(state['mrp_results'], use_container_width=True)
-        fig = px.bar(state['mrp_results'], x='Article', y='Besoin Net', color='Type')
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("⚠️ Ajoutez des demandes et calculez MRP!")
+        // Update depot on input change
+        document.getElementById('depotLat').addEventListener('change', updateDepotLocation);
+        document.getElementById('depotLon').addEventListener('change', updateDepotLocation);
+        document.getElementById('depotName').addEventListener('change', updateDepotName);
 
-elif current_tab == "📁 Export":
-    st.markdown("### 📊 Export Excel COMPLET")
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        pd.DataFrame([{**vars(a)} for a in state['articles'].values()]).to_excel(writer, 'Articles', index=False)
-        pd.DataFrame([{**vars(b)} for b in state['boms']]).to_excel(writer, 'BOMs', index=False)
-        pd.DataFrame([{**vars(d), 'due_date': d.due_date} for d in state['demands']]).to_excel(writer, 'Demandes', index=False)
-        pd.DataFrame([{**vars(s)} for s in state['stocks'].values()]).to_excel(writer, 'Stocks', index=False)
-        if not state['mrp_results'].empty:
-            state['mrp_results'].to_excel(writer, 'MRP', index=False)
-    
-    st.download_button(
-        "📥 Télécharger Excel", output.getvalue(),
-        f"MRP_v3.12_{date.today().strftime('%Y%m%d')}.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
+        function updateDepotLocation() {
+            depot.lat = parseFloat(document.getElementById('depotLat').value);
+            depot.lon = parseFloat(document.getElementById('depotLon').value);
+            if (markers.depot) map.removeLayer(markers.depot);
+            
+            const marker = L.marker([depot.lat, depot.lon], {
+                icon: L.icon({
+                    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzIyYjdhNyIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4em0uNS0xM0gxMXY2aDB2Mkg5djJoNlYxMHYtMmgtMi41ek0xMyA5aDJ2MmgtMnptLTQgMGgydjJoLTJ6Ii8+PC9zdmc+',
+                    iconSize: [25, 41],
+                    iconAnchor: [12, 41]
+                })
+            }).addTo(map);
+            
+            marker.bindPopup(`<b>${depot.name}</b><br>Depot`);
+            markers.depot = marker;
+            map.setView([depot.lat, depot.lon], 10);
+        }
+
+        function updateDepotName() {
+            depot.name = document.getElementById('depotName').value;
+        }
+
+        // Simple VRP solver - Nearest Neighbor + 2-opt
+        function solveVRP() {
+            if (deliveries.length === 0) {
+                alert('Add delivery points first');
+                return [];
+            }
+
+            const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
+            const maxVehicles = parseInt(document.getElementById('maxVehicles').value);
+
+            // Distance function
+            function distance(p1, p2) {
+                const R = 6371;
+                const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+                const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+            }
+
+            // Nearest neighbor heuristic
+            function nearestNeighbor() {
+                const unvisited = [...deliveries];
+                const routes = [];
+                let currentRoute = [];
+                let currentDemand = 0;
+
+                while (unvisited.length > 0) {
+                    if (currentRoute.length === 0) {
+                        currentRoute = [unvisited[0]];
+                        currentDemand = unvisited[0].demand;
+                        unvisited.shift();
+                    }
+
+                    let nextIdx = -1;
+                    let minDist = Infinity;
+
+                    const lastPoint = currentRoute[currentRoute.length - 1];
+                    for (let i = 0; i < unvisited.length; i++) {
+                        const d = distance(lastPoint, unvisited[i]);
+                        if (d < minDist && currentDemand + unvisited[i].demand <= capacity) {
+                            minDist = d;
+                            nextIdx = i;
+                        }
+                    }
+
+                    if (nextIdx === -1) {
+                        routes.push([...currentRoute]);
+                        currentRoute = [];
+                        currentDemand = 0;
+                        if (routes.length >= maxVehicles && unvisited.length > 0) {
+                            currentRoute = [...unvisited];
+                            break;
+                        }
+                    } else {
+                        currentRoute.push(unvisited[nextIdx]);
+                        currentDemand += unvisited[nextIdx].demand;
+                        unvisited.splice(nextIdx, 1);
+                    }
+                }
+
+                if (currentRoute.length > 0) routes.push(currentRoute);
+                return routes;
+            }
+
+            return nearestNeighbor();
+        }
+
+        // Optimize routes
+        function optimizeRoutes() {
+            const routes = solveVRP();
+            if (routes.length === 0) return;
+
+            clearRoutes();
+
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
+            let totalDistance = 0;
+            let totalDemand = 0;
+
+            routes.forEach((route, routeIdx) => {
+                const color = colors[routeIdx % colors.length];
+                const routePoints = [depot, ...route, depot];
+                let routeDistance = 0;
+
+                for (let i = 0; i < routePoints.length - 1; i++) {
+                    const p1 = routePoints[i];
+                    const p2 = routePoints[i + 1];
+                    const R = 6371;
+                    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+                    const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    routeDistance += R * c;
+                }
+
+                totalDistance += routeDistance;
+
+                const latlngs = routePoints.map(p => [p.lat, p.lon]);
+                const polyline = L.polyline(latlngs, {
+                    color: color,
+                    weight: 3,
+                    opacity: 0.7,
+                    dashArray: routeIdx > 0 ? '5, 5' : ''
+                }).addTo(map);
+
+                routePolylines.push(polyline);
+
+                route.forEach(delivery => {
+                    totalDemand += delivery.demand;
+                });
+            });
+
+            // Display results
+            showResults(routes, totalDistance, totalDemand);
+        }
+
+        // Show results
+        function showResults(routes, totalDistance, totalDemand) {
+            document.getElementById('resultsPanel').style.display = 'block';
+
+            const resultCardsContainer = document.getElementById('resultCardsContainer');
+            resultCardsContainer.innerHTML = `
+                <div class="result-card">
+                    <div class="result-card-label">Number of Routes</div>
+                    <div class="result-card-value">${routes.length}</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-card-label">Total Distance</div>
+                    <div class="result-card-value">${totalDistance.toFixed(2)} km</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-card-label">Total Demand</div>
+                    <div class="result-card-value">${totalDemand.toFixed(1)} kg</div>
+                </div>
+                <div class="result-card">
+                    <div class="result-card-label">Avg Distance/Route</div>
+                    <div class="result-card-value">${(totalDistance / routes.length).toFixed(2)} km</div>
+                </div>
+            `;
+
+            const routesContainer = document.getElementById('routesContainer');
+            let routesHtml = '';
+
+            routes.forEach((route, idx) => {
+                const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
+                let demand = 0;
+                let distance = 0;
+
+                route.forEach(delivery => { demand += delivery.demand; });
+
+                const routePoints = [depot, ...route, depot];
+                for (let i = 0; i < routePoints.length - 1; i++) {
+                    const p1 = routePoints[i];
+                    const p2 = routePoints[i + 1];
+                    const R = 6371;
+                    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
+                    const dLon = (p2.lon - p1.lon) * Math.PI / 180;
+                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                        Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
+                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                    distance += R * c;
+                }
+
+                routesHtml += `<div class="route-details fade-in">
+                    <h3 style="color: var(--color-primary); margin-bottom: var(--space-12);">Vehicle ${idx + 1}</h3>
+                    <p style="margin-bottom: var(--space-8); color: var(--color-text-secondary);">
+                        Distance: <strong>${distance.toFixed(2)} km</strong> | 
+                        Load: <strong>${demand.toFixed(1)}/${capacity} kg</strong> (${(demand/capacity*100).toFixed(0)}%)
+                    </p>
+                    <ul class="route-list">
+                        <li class="route-item">${depot.name} (Start)</li>
+                        ${route.map(d => `<li class="route-item">${d.name} (${d.demand} kg)</li>`).join('')}
+                        <li class="route-item">${depot.name} (End)</li>
+                    </ul>
+                </div>`;
+            });
+
+            routesContainer.innerHTML = routesHtml;
+        }
+
+        // Clear routes from map
+        function clearRoutes() {
+            routePolylines.forEach(p => map.removeLayer(p));
+            routePolylines = [];
+            document.getElementById('resultsPanel').style.display = 'none';
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Initialize depot marker
+        updateDepotLocation();
+    </script>
+</body>
+</html>
+components.html(html_content, height=1200, scrolling=True)
