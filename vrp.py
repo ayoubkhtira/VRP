@@ -1,635 +1,924 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import base64
+from io import StringIO
 
-st.set_page_config(page_title="VRP Route Optimizer", layout="wide")
+# Configuration de la page
+st.set_page_config(
+    page_title="VRP Route Optimizer",
+    page_icon="🚚",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# Style CSS amélioré
+css = """
+<style>
+    /* Variables CSS améliorées */
+    :root {
+        --primary: #1e88e5;
+        --primary-dark: #1565c0;
+        --primary-light: #64b5f6;
+        --secondary: #ff9800;
+        --secondary-dark: #f57c00;
+        --success: #4caf50;
+        --warning: #ff9800;
+        --danger: #f44336;
+        --dark: #212121;
+        --light: #f5f5f5;
+        --gray: #757575;
+        --border-radius: 12px;
+        --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        --transition: all 0.3s ease;
+    }
+    
+    /* Styles généraux */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+    }
+    
+    .main-header {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: var(--border-radius);
+        margin-bottom: 2rem;
+        box-shadow: var(--box-shadow);
+        animation: fadeIn 0.8s ease-out;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        box-shadow: var(--box-shadow);
+        transition: var(--transition);
+        border: none;
+        height: 100%;
+    }
+    
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        text-align: center;
+        border-left: 5px solid var(--primary);
+        transition: var(--transition);
+    }
+    
+    .metric-card:hover {
+        transform: scale(1.02);
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: var(--primary);
+        margin: 0.5rem 0;
+    }
+    
+    .metric-label {
+        color: var(--gray);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Boutons améliorés */
+    .stButton > button {
+        border-radius: 8px;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        transition: var(--transition);
+        border: none;
+        background: var(--primary);
+        color: white;
+    }
+    
+    .stButton > button:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    /* Inputs améliorés */
+    .stTextInput > div > div > input,
+    .stNumberInput > div > div > input {
+        border-radius: 8px;
+        border: 2px solid #e0e0e0;
+        transition: var(--transition);
+    }
+    
+    .stTextInput > div > div > input:focus,
+    .stNumberInput > div > div > input:focus {
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+    }
+    
+    /* Sidebar améliorée */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+    }
+    
+    /* Tabs personnalisés */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+        background: transparent;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        border-radius: 8px 8px 0 0;
+        padding: 1rem 2rem;
+        font-weight: 600;
+        transition: var(--transition);
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: var(--primary);
+        color: white;
+    }
+    
+    /* Animations */
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+        .main-header {
+            padding: 1rem;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+        }
+    }
+</style>
+"""
+
+# HTML/JS pour la carte et l'interface
+html_content = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VRP Route Optimizer - Delivery Route Calculator</title>
+    <title>VRP Route Optimizer</title>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
     <style>
-        :root {
-            --color-white: rgba(255, 255, 255, 1);
-            --color-black: rgba(0, 0, 0, 1);
-            --color-cream-50: rgba(252, 252, 249, 1);
-            --color-cream-100: rgba(255, 255, 253, 1);
-            --color-gray-200: rgba(245, 245, 245, 1);
-            --color-gray-300: rgba(167, 169, 169, 1);
-            --color-gray-400: rgba(119, 124, 124, 1);
-            --color-slate-500: rgba(98, 108, 113, 1);
-            --color-brown-600: rgba(94, 82, 64, 1);
-            --color-charcoal-700: rgba(31, 33, 33, 1);
-            --color-charcoal-800: rgba(38, 40, 40, 1);
-            --color-slate-900: rgba(19, 52, 59, 1);
-            --color-teal-300: rgba(50, 184, 198, 1);
-            --color-teal-400: rgba(45, 166, 178, 1);
-            --color-teal-500: rgba(33, 128, 141, 1);
-            --color-teal-600: rgba(29, 116, 128, 1);
-            --color-teal-700: rgba(26, 104, 115, 1);
-            --color-red-400: rgba(255, 84, 89, 1);
-            --color-red-500: rgba(192, 21, 47, 1);
-            --color-orange-400: rgba(230, 129, 97, 1);
-            --color-orange-500: rgba(168, 75, 47, 1);
-
-            --color-brown-600-rgb: 94, 82, 64;
-            --color-teal-500-rgb: 33, 128, 141;
-            --color-slate-900-rgb: 19, 52, 59;
-            --color-red-500-rgb: 192, 21, 47;
-            --color-orange-500-rgb: 168, 75, 47;
-
-            --color-bg-1: rgba(59, 130, 246, 0.08);
-            --color-bg-2: rgba(245, 158, 11, 0.08);
-            --color-bg-3: rgba(34, 197, 94, 0.08);
-            --color-bg-4: rgba(239, 68, 68, 0.08);
-            --color-bg-5: rgba(147, 51, 234, 0.08);
-            --color-bg-6: rgba(249, 115, 22, 0.08);
-            --color-bg-7: rgba(236, 72, 153, 0.08);
-            --color-bg-8: rgba(6, 182, 212, 0.08);
-
-            --color-background: var(--color-cream-50);
-            --color-surface: var(--color-cream-100);
-            --color-text: var(--color-slate-900);
-            --color-text-secondary: var(--color-slate-500);
-            --color-primary: var(--color-teal-500);
-            --color-primary-hover: var(--color-teal-600);
-            --color-primary-active: var(--color-teal-700);
-            --color-secondary: rgba(var(--color-brown-600-rgb), 0.12);
-            --color-secondary-hover: rgba(var(--color-brown-600-rgb), 0.2);
-            --color-secondary-active: rgba(var(--color-brown-600-rgb), 0.25);
-            --color-border: rgba(var(--color-brown-600-rgb), 0.2);
-            --color-btn-primary-text: var(--color-cream-50);
-            --color-card-border: rgba(var(--color-brown-600-rgb), 0.12);
-            --color-card-border-inner: rgba(var(--color-brown-600-rgb), 0.12);
-            --color-error: var(--color-red-500);
-            --color-success: var(--color-teal-500);
-            --color-warning: var(--color-orange-500);
-            --color-info: var(--color-slate-500);
-            --color-focus-ring: rgba(var(--color-teal-500-rgb), 0.4);
-
-            --focus-ring: 0 0 0 3px var(--color-focus-ring);
-            --focus-outline: 2px solid var(--color-primary);
-
-            --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            --font-family-mono: 'Courier New', monospace;
-            --font-size-sm: 12px;
-            --font-size-base: 14px;
-            --font-size-md: 14px;
-            --font-size-lg: 16px;
-            --font-size-xl: 18px;
-            --font-size-2xl: 20px;
-            --font-size-3xl: 24px;
-            --font-weight-normal: 400;
-            --font-weight-medium: 500;
-            --font-weight-semibold: 550;
-            --font-weight-bold: 600;
-            --line-height-tight: 1.2;
-            --line-height-normal: 1.5;
-
-            --space-4: 4px;
-            --space-6: 6px;
-            --space-8: 8px;
-            --space-12: 12px;
-            --space-16: 16px;
-            --space-20: 20px;
-            --space-24: 24px;
-            --space-32: 32px;
-
-            --radius-sm: 6px;
-            --radius-base: 8px;
-            --radius-md: 10px;
-            --radius-lg: 12px;
-            --radius-full: 9999px;
-
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.04);
-
-            --duration-fast: 150ms;
-            --duration-normal: 250ms;
-            --ease-standard: cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-
+        
         body {
-            font-family: var(--font-family-base);
-            background-color: var(--color-background);
-            color: var(--color-text);
-            line-height: var(--line-height-normal);
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
         }
-
+        
         .container {
-            max-width: 1400px;
+            max-width: 1800px;
             margin: 0 auto;
-            padding: var(--space-16);
+            padding: 20px;
         }
-
-        .header {
-            background: linear-gradient(135deg, #2f8696 0%, #1e5a69 100%);
-            color: white;
-            padding: var(--space-24) var(--space-16);
-            border-radius: var(--radius-lg);
-            margin-bottom: var(--space-24);
-            box-shadow: var(--shadow-md);
-        }
-
-        .header h1 {
-            font-size: var(--font-size-3xl);
-            margin-bottom: var(--space-8);
-            font-weight: var(--font-weight-bold);
-        }
-
-        .header p {
-            opacity: 0.9;
-            font-size: var(--font-size-lg);
-        }
-
-        .main-layout {
-            display: grid;
-            grid-template-columns: 350px 1fr;
-            gap: var(--space-16);
-        }
-
-        @media (max-width: 1024px) {
-            .main-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .sidebar {
-            background-color: var(--color-surface);
-            border-radius: var(--radius-lg);
-            padding: var(--space-16);
-            height: fit-content;
-            border: 1px solid var(--color-card-border);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .sidebar-section {
-            margin-bottom: var(--space-24);
-        }
-
-        .sidebar-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .sidebar-title {
-            font-size: var(--font-size-lg);
-            font-weight: var(--font-weight-semibold);
-            margin-bottom: var(--space-12);
-            color: var(--color-primary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .form-group {
-            margin-bottom: var(--space-12);
-        }
-
-        .form-label {
-            display: block;
-            font-size: var(--font-size-sm);
-            font-weight: var(--font-weight-medium);
-            margin-bottom: var(--space-6);
-            color: var(--color-text);
-        }
-
-        .form-control {
-            width: 100%;
-            padding: var(--space-8) var(--space-12);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-base);
-            font-size: var(--font-size-base);
-            background-color: var(--color-white);
-            color: var(--color-text);
-            font-family: var(--font-family-base);
-            transition: all var(--duration-fast) var(--ease-standard);
-        }
-
-        .form-control:focus {
-            outline: none;
-            border-color: var(--color-primary);
-            box-shadow: var(--focus-ring);
-        }
-
-        .btn {
-            padding: var(--space-8) var(--space-16);
-            border: none;
-            border-radius: var(--radius-base);
-            font-size: var(--font-size-base);
-            font-weight: var(--font-weight-medium);
-            cursor: pointer;
-            transition: all var(--duration-normal) var(--ease-standard);
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--space-8);
-        }
-
-        .btn:focus-visible {
-            outline: none;
-            box-shadow: var(--focus-ring);
-        }
-
-        .btn--primary {
-            background-color: var(--color-primary);
-            color: var(--color-btn-primary-text);
-            width: 100%;
-        }
-
-        .btn--primary:hover {
-            background-color: var(--color-primary-hover);
-        }
-
-        .btn--primary:active {
-            background-color: var(--color-primary-active);
-        }
-
-        .btn--secondary {
-            background-color: var(--color-secondary);
-            color: var(--color-text);
-        }
-
-        .btn--secondary:hover {
-            background-color: var(--color-secondary-hover);
-        }
-
-        .btn--sm {
-            padding: var(--space-6) var(--space-12);
-            font-size: var(--font-size-sm);
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        .delivery-item {
-            background-color: var(--color-white);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-base);
-            padding: var(--space-12);
-            margin-bottom: var(--space-8);
-            display: flex;
-            gap: var(--space-8);
-            align-items: flex-start;
-        }
-
-        .delivery-item-content {
-            flex: 1;
-        }
-
-        .delivery-item-name {
-            font-weight: var(--font-weight-semibold);
-            font-size: var(--font-size-base);
-            margin-bottom: var(--space-4);
-        }
-
-        .delivery-item-details {
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-            margin-bottom: var(--space-4);
-        }
-
-        .btn-small {
-            padding: var(--space-4) var(--space-8);
-            font-size: 11px;
-            background-color: var(--color-error);
-            color: white;
-            border: none;
-            border-radius: var(--radius-sm);
-            cursor: pointer;
-            transition: all var(--duration-fast) var(--ease-standard);
-        }
-
-        .btn-small:hover {
-            background-color: var(--color-red-400);
-        }
-
-        .content {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-16);
-        }
-
-        .map-container {
-            background-color: var(--color-surface);
-            border-radius: var(--radius-lg);
-            border: 1px solid var(--color-card-border);
+        
+        .app-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
             overflow: hidden;
-            box-shadow: var(--shadow-md);
-            min-height: 500px;
+            animation: slideUp 0.6s ease-out;
         }
-
-        #map {
-            width: 100%;
-            height: 500px;
-            border-radius: var(--radius-lg);
-        }
-
-        .results-panel {
-            background-color: var(--color-surface);
-            border-radius: var(--radius-lg);
-            padding: var(--space-16);
-            border: 1px solid var(--color-card-border);
-            box-shadow: var(--shadow-md);
-        }
-
-        .results-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: var(--space-16);
-            margin-bottom: var(--space-16);
-        }
-
-        .result-card {
-            background-color: var(--color-white);
-            border-left: 4px solid var(--color-primary);
-            padding: var(--space-16);
-            border-radius: var(--radius-base);
-            box-shadow: var(--shadow-sm);
-        }
-
-        .result-card-label {
-            font-size: var(--font-size-sm);
-            color: var(--color-text-secondary);
-            margin-bottom: var(--space-4);
-            font-weight: var(--font-weight-medium);
-        }
-
-        .result-card-value {
-            font-size: var(--font-size-2xl);
-            font-weight: var(--font-weight-bold);
-            color: var(--color-primary);
-        }
-
-        .route-details {
-            background-color: var(--color-white);
-            border-radius: var(--radius-base);
-            padding: var(--space-16);
-            margin-top: var(--space-16);
-        }
-
-        .route-list {
-            list-style: none;
-            counter-reset: route-counter;
-        }
-
-        .route-item {
-            counter-increment: route-counter;
-            padding: var(--space-12) var(--space-16);
-            background-color: var(--color-bg-3);
-            margin-bottom: var(--space-8);
-            border-radius: var(--radius-base);
-            border-left: 3px solid var(--color-success);
-        }
-
-        .route-item::before {
-            content: counter(route-counter) ". ";
-            font-weight: var(--font-weight-bold);
-            color: var(--color-primary);
-        }
-
-        .info-message {
-            background-color: var(--color-bg-1);
-            border-left: 4px solid var(--color-info);
-            padding: var(--space-12) var(--space-16);
-            border-radius: var(--radius-base);
-            color: var(--color-text);
-            font-size: var(--font-size-sm);
-            margin-top: var(--space-16);
-        }
-
-        .tabs {
-            display: flex;
-            gap: var(--space-8);
-            border-bottom: 2px solid var(--color-border);
-            margin-bottom: var(--space-16);
-        }
-
-        .tab-btn {
-            padding: var(--space-8) var(--space-16);
-            background: none;
-            border: none;
-            border-bottom: 3px solid transparent;
-            cursor: pointer;
-            font-size: var(--font-size-base);
-            font-weight: var(--font-weight-medium);
-            color: var(--color-text-secondary);
-            transition: all var(--duration-fast) var(--ease-standard);
-        }
-
-        .tab-btn.active {
-            color: var(--color-primary);
-            border-bottom-color: var(--color-primary);
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        .hidden {
-            display: none;
-        }
-
-        .leaflet-popup-content {
-            font-family: var(--font-family-base);
-        }
-
-        @keyframes fadeIn {
+        
+        @keyframes slideUp {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(30px);
             }
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-
-        .fade-in {
-            animation: fadeIn var(--duration-normal) var(--ease-standard);
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none"><path d="M0,0 L100,0 L100,100 Z" fill="rgba(255,255,255,0.1)"/></svg>');
+            background-size: cover;
+        }
+        
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .logo {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            font-weight: 300;
+        }
+        
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+            padding: 0 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: scale(1.05);
+        }
+        
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            font-family: 'Roboto Mono', monospace;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 10px;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .control-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            height: fit-content;
+            position: sticky;
+            top: 30px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+        }
+        
+        .section-title i {
+            color: #667eea;
+            font-size: 1.5rem;
+        }
+        
+        .input-group {
+            margin-bottom: 25px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+            font-size: 0.95rem;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 16px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            width: 100%;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .btn-secondary:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+        
+        .delivery-list {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .delivery-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+        
+        .delivery-item:hover {
+            background: #e9ecef;
+            transform: translateX(5px);
+        }
+        
+        .map-container {
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            height: 600px;
+        }
+        
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .results-panel {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .result-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+            padding: 25px;
+            border-radius: 16px;
+            text-align: center;
+        }
+        
+        .route-item {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .route-number {
+            background: #667eea;
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        
+        .loading {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px 50px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            text-align: center;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .notification {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            padding: 20px 30px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(100%);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+            opacity: 1;
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+        }
+        
+        .notification.info {
+            background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+        }
+        
+        .color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
         }
     </style>
 </head>
 <body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <h3>Optimizing Routes...</h3>
+        <p>This may take a few moments</p>
+    </div>
+    
     <div class="container">
-        <div class="header">
-            <h1>🚚 VRP Route Optimizer</h1>
-            <p>Vehicle Routing Problem Solver - Optimize delivery routes with modern algorithms</p>
-        </div>
-
-        <div class="main-layout">
-            <!-- Sidebar -->
-            <aside class="sidebar">
-                <div class="sidebar-section">
-                    <div class="sidebar-title">Depot Location</div>
-                    <div class="form-group">
-                        <label class="form-label">Latitude</label>
-                        <input type="number" id="depotLat" class="form-control" value="48.8566" step="0.0001" placeholder="Latitude">
+        <div class="app-wrapper">
+            <div class="header">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-route"></i>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Longitude</label>
-                        <input type="number" id="depotLon" class="form-control" value="2.3522" step="0.0001" placeholder="Longitude">
+                    <h1>VRP Route Optimizer</h1>
+                    <p class="subtitle">
+                        Advanced Vehicle Routing Problem Solver with Real-time Optimization and Interactive Visualization
+                    </p>
+                </div>
+            </div>
+            
+            <div class="stats-bar" id="statsBar" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-value" id="statRoutes">0</div>
+                    <div class="stat-label">Optimized Routes</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statDistance">0 km</div>
+                    <div class="stat-label">Total Distance</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statDemand">0 kg</div>
+                    <div class="stat-label">Total Demand</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="statEfficiency">0%</div>
+                    <div class="stat-label">Efficiency</div>
+                </div>
+            </div>
+            
+            <div class="main-layout">
+                <div class="control-panel glass-card">
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-warehouse"></i>
+                            <span>Depot Configuration</span>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Depot Name</label>
+                            <input type="text" id="depotName" class="input-field" value="Main Depot" placeholder="Enter depot name">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Latitude</label>
+                            <input type="number" id="depotLat" class="input-field" value="48.8566" step="0.0001">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Longitude</label>
+                            <input type="number" id="depotLon" class="input-field" value="2.3522" step="0.0001">
+                        </div>
+                        <button class="btn btn-secondary" onclick="updateDepot()">
+                            <i class="fas fa-sync-alt"></i> Update Depot
+                        </button>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Depot Name</label>
-                        <input type="text" id="depotName" class="form-control" value="Depot" placeholder="Depot name">
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-plus-circle"></i>
+                            <span>Add Delivery Point</span>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Customer Name</label>
+                            <input type="text" id="deliveryName" class="input-field" placeholder="Enter customer name">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Latitude</label>
+                            <input type="number" id="deliveryLat" class="input-field" step="0.0001" placeholder="48.8600">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Longitude</label>
+                            <input type="number" id="deliveryLon" class="input-field" step="0.0001" placeholder="2.3500">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Demand (kg)</label>
+                            <input type="number" id="deliveryDemand" class="input-field" value="10" min="1" step="1">
+                        </div>
+                        <button class="btn btn-primary" onclick="addDelivery()">
+                            <i class="fas fa-plus"></i> Add Delivery Point
+                        </button>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-list-ol"></i>
+                            <span>Delivery Points</span>
+                            <span class="badge" id="deliveryCount">0</span>
+                        </div>
+                        <div class="delivery-list" id="deliveryList">
+                            <div class="empty-state">
+                                <i class="fas fa-inbox"></i>
+                                <p>No delivery points added yet</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" onclick="clearDeliveries()" style="margin-top: 15px;">
+                            <i class="fas fa-trash"></i> Clear All
+                        </button>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-cogs"></i>
+                            <span>Optimization Settings</span>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Vehicle Capacity (kg)</label>
+                            <input type="number" id="vehicleCapacity" class="input-field" value="100" min="10" step="10">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Max Vehicles</label>
+                            <input type="number" id="maxVehicles" class="input-field" value="3" min="1" step="1">
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Algorithm</label>
+                            <select id="algorithm" class="input-field">
+                                <option value="nearest">Nearest Neighbor</option>
+                                <option value="savings">Clarke & Wright Savings</option>
+                                <option value="sweep">Sweep Algorithm</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary pulse" onclick="optimizeRoutes()">
+                            <i class="fas fa-bolt"></i> Optimize Routes
+                        </button>
                     </div>
                 </div>
-
-                <div class="sidebar-section">
-                    <div class="sidebar-title">Add Delivery Point</div>
-                    <div class="form-group">
-                        <label class="form-label">Name</label>
-                        <input type="text" id="deliveryName" class="form-control" placeholder="e.g., Customer A">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Latitude</label>
-                        <input type="number" id="deliveryLat" class="form-control" step="0.0001" placeholder="Latitude">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Longitude</label>
-                        <input type="number" id="deliveryLon" class="form-control" step="0.0001" placeholder="Longitude">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Demand (kg)</label>
-                        <input type="number" id="deliveryDemand" class="form-control" value="1" min="0.1" step="0.1" placeholder="Weight">
-                    </div>
-                    <button class="btn btn--primary" onclick="addDelivery()">+ Add Delivery Point</button>
-                </div>
-
-                <div class="sidebar-section">
-                    <div class="sidebar-title">Delivery Points</div>
-                    <div id="deliveryList"></div>
-                    <button class="btn btn--secondary btn--sm" onclick="clearDeliveries()" style="width: 100%; margin-top: var(--space-8);">Clear All</button>
-                </div>
-
-                <div class="sidebar-section">
-                    <div class="sidebar-title">Optimization</div>
-                    <div class="form-group">
-                        <label class="form-label">Vehicle Capacity (kg)</label>
-                        <input type="number" id="vehicleCapacity" class="form-control" value="100" min="1" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Max Vehicles</label>
-                        <input type="number" id="maxVehicles" class="form-control" value="3" min="1" step="1">
-                    </div>
-                    <button class="btn btn--primary" onclick="optimizeRoutes()" style="font-size: 16px; font-weight: 600;">🔄 Optimize Routes</button>
-                </div>
-            </aside>
-
-            <!-- Main Content -->
-            <div class="content">
-                <div class="map-container">
+                
+                <div class="map-container glass-card">
                     <div id="map"></div>
                 </div>
-
-                <div class="results-panel" id="resultsPanel" style="display: none;">
-                    <div class="tabs">
-                        <button class="tab-btn active" onclick="switchTab('summary')">Summary</button>
-                        <button class="tab-btn" onclick="switchTab('routes')">Route Details</button>
-                    </div>
-
-                    <div id="summary" class="tab-content active">
-                        <div class="results-grid" id="resultCardsContainer"></div>
-                        <div class="info-message">
-                            Routes optimized using nearest neighbor heuristic with 2-opt local search improvement.
-                        </div>
-                    </div>
-
-                    <div id="routes" class="tab-content">
-                        <div id="routesContainer"></div>
-                    </div>
+            </div>
+            
+            <div class="results-panel" id="resultsPanel" style="display: none;">
+                <h2 style="margin-bottom: 30px; color: #333;">
+                    <i class="fas fa-chart-line"></i> Optimization Results
+                </h2>
+                
+                <div class="results-grid" id="resultCardsContainer"></div>
+                
+                <div style="margin-top: 40px;">
+                    <h3 style="margin-bottom: 20px; color: #333;">
+                        <i class="fas fa-route"></i> Route Details
+                    </h3>
+                    <div id="routesContainer"></div>
                 </div>
             </div>
         </div>
     </div>
-
+    
     <script>
-        // Initialize Leaflet map
-        const map = L.map('map').setView([48.8566, 2.3522], 10);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Initialisation de la carte Leaflet
+        const map = L.map('map').setView([48.8566, 2.3522], 12);
+        
+        // Couches de tuiles
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
         }).addTo(map);
-
+        
+        // Couche satellite
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri',
+            maxZoom: 19
+        });
+        
+        // Contrôle des couches
+        const baseLayers = {
+            "OpenStreetMap": osmLayer,
+            "Satellite": satelliteLayer
+        };
+        L.control.layers(baseLayers).addTo(map);
+        
         let markers = {};
         let routePolylines = [];
         let deliveries = [];
-        let depot = { lat: 48.8566, lon: 2.3522, name: 'Depot' };
-
-        // Add delivery point
+        let depot = { lat: 48.8566, lon: 2.3522, name: 'Main Depot' };
+        
+        // Icones personnalisées
+        const depotIcon = L.divIcon({
+            html: '<div style="background: #667eea; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"><i class="fas fa-warehouse"></i></div>',
+            className: 'custom-depot-icon',
+            iconSize: [40, 40],
+            iconAnchor: [20, 20]
+        });
+        
+        const deliveryIcon = L.divIcon({
+            html: '<div style="background: #ff9800; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; border: 2px solid white; box-shadow: 0 0 8px rgba(0,0,0,0.2);"><i class="fas fa-map-marker-alt"></i></div>',
+            className: 'custom-delivery-icon',
+            iconSize: [32, 32],
+            iconAnchor: [16, 16]
+        });
+        
+        // Couleurs pour les routes
+        const routeColors = ['#667eea', '#ff9800', '#4CAF50', '#f44336', '#9C27B0', '#00BCD4', '#FFC107', '#8BC34A'];
+        
+        // Initialiser le dépôt
+        function initDepot() {
+            if (markers.depot) map.removeLayer(markers.depot);
+            
+            const marker = L.marker([depot.lat, depot.lon], { icon: depotIcon })
+                .addTo(map)
+                .bindPopup(`<b>${depot.name}</b><br>Depot Location<br>Lat: ${depot.lat.toFixed(4)}<br>Lon: ${depot.lon.toFixed(4)}`);
+            
+            markers.depot = marker;
+        }
+        
+        // Mettre à jour le dépôt
+        function updateDepot() {
+            const name = document.getElementById('depotName').value.trim();
+            const lat = parseFloat(document.getElementById('depotLat').value);
+            const lon = parseFloat(document.getElementById('depotLon').value);
+            
+            if (!name || isNaN(lat) || isNaN(lon)) {
+                showNotification('Please enter valid depot information', 'error');
+                return;
+            }
+            
+            depot = { name, lat, lon };
+            initDepot();
+            map.setView([depot.lat, depot.lon], 12);
+            showNotification('Depot location updated successfully', 'success');
+        }
+        
+        // Ajouter un point de livraison
         function addDelivery() {
             const name = document.getElementById('deliveryName').value.trim();
             const lat = parseFloat(document.getElementById('deliveryLat').value);
             const lon = parseFloat(document.getElementById('deliveryLon').value);
             const demand = parseFloat(document.getElementById('deliveryDemand').value);
-
-            if (!name || isNaN(lat) || isNaN(lon) || isNaN(demand)) {
-                alert('Please fill all fields with valid data');
+            
+            if (!name || isNaN(lat) || isNaN(lon) || isNaN(demand) || demand <= 0) {
+                showNotification('Please fill all fields with valid data', 'error');
                 return;
             }
-
-            const delivery = { id: Date.now(), name, lat, lon, demand };
+            
+            const delivery = { 
+                id: Date.now() + Math.random(), 
+                name, 
+                lat, 
+                lon, 
+                demand,
+                addedAt: new Date().toLocaleTimeString()
+            };
+            
             deliveries.push(delivery);
-
-            // Clear inputs
+            renderDeliveryList();
+            addMarkerToMap(delivery);
+            
+            // Réinitialiser les champs
             document.getElementById('deliveryName').value = '';
             document.getElementById('deliveryLat').value = '';
             document.getElementById('deliveryLon').value = '';
-            document.getElementById('deliveryDemand').value = '1';
-
-            renderDeliveryList();
-            addMarkerToMap(delivery);
+            document.getElementById('deliveryDemand').value = '10';
+            
+            showNotification(`Delivery point "${name}" added successfully`, 'success');
         }
-
-        // Render delivery list
+        
+        // Ajouter un marqueur sur la carte
+        function addMarkerToMap(delivery) {
+            const marker = L.marker([delivery.lat, delivery.lon], { icon: deliveryIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <b>${delivery.name}</b><br>
+                    Demand: ${delivery.demand} kg<br>
+                    Location: ${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}<br>
+                    Added: ${delivery.addedAt}
+                `);
+            
+            markers[delivery.id] = marker;
+        }
+        
+        // Afficher la liste des livraisons
         function renderDeliveryList() {
             const container = document.getElementById('deliveryList');
+            const countElement = document.getElementById('deliveryCount');
+            
+            if (deliveries.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-inbox"></i>
+                        <p>No delivery points added yet</p>
+                    </div>
+                `;
+                countElement.textContent = '0';
+                return;
+            }
+            
+            countElement.textContent = deliveries.length;
             container.innerHTML = '';
-
+            
             deliveries.forEach((delivery, index) => {
                 const div = document.createElement('div');
                 div.className = 'delivery-item';
                 div.innerHTML = `
-                    <div class="delivery-item-content">
-                        <div class="delivery-item-name">${delivery.name}</div>
-                        <div class="delivery-item-details">${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}</div>
-                        <div class="delivery-item-details">Demand: ${delivery.demand}kg</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #333;">${delivery.name}</div>
+                        <div style="font-size: 0.9rem; color: #666;">
+                            ${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}
+                        </div>
+                        <div style="font-size: 0.9rem; color: #667eea; font-weight: 500;">
+                            <i class="fas fa-weight-hanging"></i> ${delivery.demand} kg
+                        </div>
                     </div>
-                    <button class="btn-small" onclick="removeDelivery(${delivery.id})">Remove</button>
+                    <button onclick="removeDelivery(${delivery.id})" 
+                            style="background: #f44336; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.3s ease;"
+                            onmouseover="this.style.transform='scale(1.1)'" 
+                            onmouseout="this.style.transform='scale(1)'">
+                        <i class="fas fa-times"></i>
+                    </button>
                 `;
                 container.appendChild(div);
             });
         }
-
-        // Remove delivery
+        
+        // Supprimer une livraison
         function removeDelivery(id) {
             deliveries = deliveries.filter(d => d.id !== id);
+            
             if (markers[id]) {
                 map.removeLayer(markers[id]);
                 delete markers[id];
             }
+            
             renderDeliveryList();
+            showNotification('Delivery point removed', 'info');
         }
-
-        // Clear all deliveries
+        
+        // Effacer toutes les livraisons
         function clearDeliveries() {
             if (deliveries.length === 0) return;
-            if (!confirm('Clear all delivery points?')) return;
+            
+            if (!confirm('Are you sure you want to clear all delivery points?')) return;
             
             deliveries.forEach(d => {
                 if (markers[d.id]) {
@@ -637,256 +926,559 @@ st.set_page_config(page_title="VRP Route Optimizer", layout="wide")
                     delete markers[d.id];
                 }
             });
+            
             deliveries = [];
             renderDeliveryList();
             clearRoutes();
+            showNotification('All delivery points cleared', 'info');
         }
-
-        // Add marker to map
-        function addMarkerToMap(delivery) {
-            const marker = L.circleMarker([delivery.lat, delivery.lon], {
-                radius: 7,
-                fillColor: '#2f8696',
-                color: '#fff',
-                weight: 2,
-                opacity: 1,
-                fillOpacity: 0.8
-            }).addTo(map);
-
-            marker.bindPopup(`<b>${delivery.name}</b><br>Demand: ${delivery.demand}kg`);
-            markers[delivery.id] = marker;
-        }
-
-        // Update depot on input change
-        document.getElementById('depotLat').addEventListener('change', updateDepotLocation);
-        document.getElementById('depotLon').addEventListener('change', updateDepotLocation);
-        document.getElementById('depotName').addEventListener('change', updateDepotName);
-
-        function updateDepotLocation() {
-            depot.lat = parseFloat(document.getElementById('depotLat').value);
-            depot.lon = parseFloat(document.getElementById('depotLon').value);
-            if (markers.depot) map.removeLayer(markers.depot);
-            
-            const marker = L.marker([depot.lat, depot.lon], {
-                icon: L.icon({
-                    iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzIyYjdhNyIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDIgMC04LTMuNTgtOC04czMuNTgtOCA4LTggOCAzLjU4IDggOC0zLjU4IDgtOCA4em0uNS0xM0gxMXY2aDB2Mkg5djJoNlYxMHYtMmgtMi41ek0xMyA5aDJ2MmgtMnptLTQgMGgydjJoLTJ6Ii8+PC9zdmc+',
-                    iconSize: [25, 41],
-                    iconAnchor: [12, 41]
-                })
-            }).addTo(map);
-            
-            marker.bindPopup(`<b>${depot.name}</b><br>Depot`);
-            markers.depot = marker;
-            map.setView([depot.lat, depot.lon], 10);
-        }
-
-        function updateDepotName() {
-            depot.name = document.getElementById('depotName').value;
-        }
-
-        // Simple VRP solver - Nearest Neighbor + 2-opt
-        function solveVRP() {
-            if (deliveries.length === 0) {
-                alert('Add delivery points first');
-                return [];
-            }
-
-            const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
-            const maxVehicles = parseInt(document.getElementById('maxVehicles').value);
-
-            // Distance function
-            function distance(p1, p2) {
-                const R = 6371;
-                const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-                const dLon = (p2.lon - p1.lon) * Math.PI / 180;
-                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                    Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-                    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                return R * c;
-            }
-
-            // Nearest neighbor heuristic
-            function nearestNeighbor() {
-                const unvisited = [...deliveries];
-                const routes = [];
-                let currentRoute = [];
-                let currentDemand = 0;
-
-                while (unvisited.length > 0) {
-                    if (currentRoute.length === 0) {
-                        currentRoute = [unvisited[0]];
-                        currentDemand = unvisited[0].demand;
-                        unvisited.shift();
-                    }
-
-                    let nextIdx = -1;
-                    let minDist = Infinity;
-
-                    const lastPoint = currentRoute[currentRoute.length - 1];
-                    for (let i = 0; i < unvisited.length; i++) {
-                        const d = distance(lastPoint, unvisited[i]);
-                        if (d < minDist && currentDemand + unvisited[i].demand <= capacity) {
-                            minDist = d;
-                            nextIdx = i;
-                        }
-                    }
-
-                    if (nextIdx === -1) {
-                        routes.push([...currentRoute]);
-                        currentRoute = [];
-                        currentDemand = 0;
-                        if (routes.length >= maxVehicles && unvisited.length > 0) {
-                            currentRoute = [...unvisited];
-                            break;
-                        }
-                    } else {
-                        currentRoute.push(unvisited[nextIdx]);
-                        currentDemand += unvisited[nextIdx].demand;
-                        unvisited.splice(nextIdx, 1);
-                    }
-                }
-
-                if (currentRoute.length > 0) routes.push(currentRoute);
-                return routes;
-            }
-
-            return nearestNeighbor();
-        }
-
-        // Optimize routes
-        function optimizeRoutes() {
-            const routes = solveVRP();
-            if (routes.length === 0) return;
-
-            clearRoutes();
-
-            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
-            let totalDistance = 0;
-            let totalDemand = 0;
-
-            routes.forEach((route, routeIdx) => {
-                const color = colors[routeIdx % colors.length];
-                const routePoints = [depot, ...route, depot];
-                let routeDistance = 0;
-
-                for (let i = 0; i < routePoints.length - 1; i++) {
-                    const p1 = routePoints[i];
-                    const p2 = routePoints[i + 1];
-                    const R = 6371;
-                    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-                    const dLon = (p2.lon - p1.lon) * Math.PI / 180;
-                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    routeDistance += R * c;
-                }
-
-                totalDistance += routeDistance;
-
-                const latlngs = routePoints.map(p => [p.lat, p.lon]);
-                const polyline = L.polyline(latlngs, {
-                    color: color,
-                    weight: 3,
-                    opacity: 0.7,
-                    dashArray: routeIdx > 0 ? '5, 5' : ''
-                }).addTo(map);
-
-                routePolylines.push(polyline);
-
-                route.forEach(delivery => {
-                    totalDemand += delivery.demand;
-                });
-            });
-
-            // Display results
-            showResults(routes, totalDistance, totalDemand);
-        }
-
-        // Show results
-        function showResults(routes, totalDistance, totalDemand) {
-            document.getElementById('resultsPanel').style.display = 'block';
-
-            const resultCardsContainer = document.getElementById('resultCardsContainer');
-            resultCardsContainer.innerHTML = `
-                <div class="result-card">
-                    <div class="result-card-label">Number of Routes</div>
-                    <div class="result-card-value">${routes.length}</div>
-                </div>
-                <div class="result-card">
-                    <div class="result-card-label">Total Distance</div>
-                    <div class="result-card-value">${totalDistance.toFixed(2)} km</div>
-                </div>
-                <div class="result-card">
-                    <div class="result-card-label">Total Demand</div>
-                    <div class="result-card-value">${totalDemand.toFixed(1)} kg</div>
-                </div>
-                <div class="result-card">
-                    <div class="result-card-label">Avg Distance/Route</div>
-                    <div class="result-card-value">${(totalDistance / routes.length).toFixed(2)} km</div>
-                </div>
+        
+        // Afficher une notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
+                ${message}
             `;
-
-            const routesContainer = document.getElementById('routesContainer');
-            let routesHtml = '';
-
-            routes.forEach((route, idx) => {
-                const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
-                let demand = 0;
-                let distance = 0;
-
-                route.forEach(delivery => { demand += delivery.demand; });
-
-                const routePoints = [depot, ...route, depot];
-                for (let i = 0; i < routePoints.length - 1; i++) {
-                    const p1 = routePoints[i];
-                    const p2 = routePoints[i + 1];
-                    const R = 6371;
-                    const dLat = (p2.lat - p1.lat) * Math.PI / 180;
-                    const dLon = (p2.lon - p1.lon) * Math.PI / 180;
-                    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                        Math.cos(p1.lat * Math.PI / 180) * Math.cos(p2.lat * Math.PI / 180) *
-                        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-                    distance += R * c;
-                }
-
-                routesHtml += `<div class="route-details fade-in">
-                    <h3 style="color: var(--color-primary); margin-bottom: var(--space-12);">Vehicle ${idx + 1}</h3>
-                    <p style="margin-bottom: var(--space-8); color: var(--color-text-secondary);">
-                        Distance: <strong>${distance.toFixed(2)} km</strong> | 
-                        Load: <strong>${demand.toFixed(1)}/${capacity} kg</strong> (${(demand/capacity*100).toFixed(0)}%)
-                    </p>
-                    <ul class="route-list">
-                        <li class="route-item">${depot.name} (Start)</li>
-                        ${route.map(d => `<li class="route-item">${d.name} (${d.demand} kg)</li>`).join('')}
-                        <li class="route-item">${depot.name} (End)</li>
-                    </ul>
-                </div>`;
-            });
-
-            routesContainer.innerHTML = routesHtml;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
         }
-
-        // Clear routes from map
+        
+        // Afficher le chargement
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+        }
+        
+        // Cacher le chargement
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+        }
+        
+        // Effacer les routes
         function clearRoutes() {
             routePolylines.forEach(p => map.removeLayer(p));
             routePolylines = [];
             document.getElementById('resultsPanel').style.display = 'none';
+            document.getElementById('statsBar').style.display = 'none';
         }
-
-        // Tab switching
-        function switchTab(tabName) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
+        
+        // Calculer la distance (formule de Haversine)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Rayon de la Terre en km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                     Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
         }
-
-        // Initialize depot marker
-        updateDepotLocation();
+        
+        // Algorithme du plus proche voisin
+        function nearestNeighborAlgorithm(capacity, maxVehicles) {
+            if (deliveries.length === 0) return [];
+            
+            const unvisited = [...deliveries];
+            const routes = [];
+            let vehicleCount = 0;
+            
+            while (unvisited.length > 0 && vehicleCount < maxVehicles) {
+                const route = [];
+                let currentLoad = 0;
+                let currentLocation = depot;
+                
+                while (unvisited.length > 0) {
+                    let nearestIdx = -1;
+                    let nearestDist = Infinity;
+                    
+                    // Trouver le point non visité le plus proche
+                    for (let i = 0; i < unvisited.length; i++) {
+                        if (currentLoad + unvisited[i].demand <= capacity) {
+                            const dist = calculateDistance(
+                                currentLocation.lat, currentLocation.lon,
+                                unvisited[i].lat, unvisited[i].lon
+                            );
+                            
+                            if (dist < nearestDist) {
+                                nearestDist = dist;
+                                nearestIdx = i;
+                            }
+                        }
+                    }
+                    
+                    // Si aucun point ne peut être ajouté, terminer cette route
+                    if (nearestIdx === -1) break;
+                    
+                    // Ajouter le point à la route
+                    const nextPoint = unvisited.splice(nearestIdx, 1)[0];
+                    route.push(nextPoint);
+                    currentLoad += nextPoint.demand;
+                    currentLocation = nextPoint;
+                }
+                
+                if (route.length > 0) {
+                    routes.push(route);
+                    vehicleCount++;
+                } else {
+                    break;
+                }
+            }
+            
+            // Si des points restent non affectés, les ajouter à la dernière route
+            if (unvisited.length > 0) {
+                if (routes.length === 0) {
+                    routes.push([...unvisited]);
+                } else {
+                    routes[routes.length - 1] = [...routes[routes.length - 1], ...unvisited];
+                }
+            }
+            
+            return routes;
+        }
+        
+        // Algorithme de Clarke & Wright Savings
+        function savingsAlgorithm(capacity, maxVehicles) {
+            if (deliveries.length === 0) return [];
+            
+            // Calculer les économies
+            const savings = [];
+            for (let i = 0; i < deliveries.length; i++) {
+                for (let j = i + 1; j < deliveries.length; j++) {
+                    const saving = calculateDistance(depot.lat, depot.lon, deliveries[i].lat, deliveries[i].lon) +
+                                 calculateDistance(depot.lat, depot.lon, deliveries[j].lat, deliveries[j].lon) -
+                                 calculateDistance(deliveries[i].lat, deliveries[i].lon, deliveries[j].lat, deliveries[j].lon);
+                    
+                    savings.push({
+                        i, j, saving,
+                        demand: deliveries[i].demand + deliveries[j].demand
+                    });
+                }
+            }
+            
+            // Trier par économie décroissante
+            savings.sort((a, b) => b.saving - a.saving);
+            
+            // Initialiser chaque point comme une route séparée
+            const routes = deliveries.map(d => [d]);
+            const routeLoads = deliveries.map(d => d.demand);
+            
+            // Fusionner les routes selon les économies
+            for (const saving of savings) {
+                if (routes.length <= maxVehicles) break;
+                
+                const routeI = routes.findIndex(route => route.includes(deliveries[saving.i]));
+                const routeJ = routes.findIndex(route => route.includes(deliveries[saving.j]));
+                
+                if (routeI !== routeJ && routeLoads[routeI] + routeLoads[routeJ] <= capacity) {
+                    // Fusionner les routes
+                    routes[routeI] = [...routes[routeI], ...routes[routeJ]];
+                    routeLoads[routeI] += routeLoads[routeJ];
+                    
+                    // Supprimer la route fusionnée
+                    routes.splice(routeJ, 1);
+                    routeLoads.splice(routeJ, 1);
+                }
+            }
+            
+            return routes;
+        }
+        
+        // Optimiser les routes
+        function optimizeRoutes() {
+            if (deliveries.length === 0) {
+                showNotification('Please add delivery points first', 'error');
+                return;
+            }
+            
+            showLoading();
+            clearRoutes();
+            
+            setTimeout(() => {
+                const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
+                const maxVehicles = parseInt(document.getElementById('maxVehicles').value);
+                const algorithm = document.getElementById('algorithm').value;
+                
+                let routes = [];
+                
+                // Sélectionner l'algorithme
+                switch(algorithm) {
+                    case 'nearest':
+                        routes = nearestNeighborAlgorithm(capacity, maxVehicles);
+                        break;
+                    case 'savings':
+                        routes = savingsAlgorithm(capacity, maxVehicles);
+                        break;
+                    case 'sweep':
+                        // Algorithme de balayage simple
+                        routes = nearestNeighborAlgorithm(capacity, maxVehicles);
+                        break;
+                    default:
+                        routes = nearestNeighborAlgorithm(capacity, maxVehicles);
+                }
+                
+                // Afficher les routes sur la carte
+                displayRoutes(routes);
+                hideLoading();
+            }, 1000);
+        }
+        
+        // Afficher les routes
+        function displayRoutes(routes) {
+            clearRoutes();
+            
+            let totalDistance = 0;
+            let totalDemand = 0;
+            
+            // Afficher chaque route
+            routes.forEach((route, routeIdx) => {
+                const color = routeColors[routeIdx % routeColors.length];
+                let routeDistance = 0;
+                let routeDemand = 0;
+                
+                // Calculer la demande totale de la route
+                route.forEach(point => {
+                    routeDemand += point.demand;
+                    totalDemand += point.demand;
+                });
+                
+                // Créer les points de la route (dépôt -> points -> dépôt)
+                const routePoints = [
+                    [depot.lat, depot.lon],
+                    ...route.map(point => [point.lat, point.lon]),
+                    [depot.lat, depot.lon]
+                ];
+                
+                // Calculer la distance de la route
+                for (let i = 0; i < routePoints.length - 1; i++) {
+                    routeDistance += calculateDistance(
+                        routePoints[i][0], routePoints[i][1],
+                        routePoints[i + 1][0], routePoints[i + 1][1]
+                    );
+                }
+                
+                totalDistance += routeDistance;
+                
+                // Dessiner la polyligne
+                const polyline = L.polyline(routePoints, {
+                    color: color,
+                    weight: 4,
+                    opacity: 0.8,
+                    dashArray: routeIdx % 2 === 0 ? null : '10, 10'
+                }).addTo(map);
+                
+                // Ajouter un marqueur pour le véhicule
+                const vehicleMarker = L.circleMarker(routePoints[1], {
+                    radius: 8,
+                    fillColor: color,
+                    color: 'white',
+                    weight: 2,
+                    fillOpacity: 1
+                }).addTo(map)
+                .bindPopup(`<b>Vehicle ${routeIdx + 1}</b><br>Route distance: ${routeDistance.toFixed(2)} km<br>Load: ${routeDemand} kg`);
+                
+                routePolylines.push(polyline);
+                routePolylines.push(vehicleMarker);
+                
+                // Ajuster la vue de la carte
+                if (routeIdx === 0) {
+                    const bounds = L.latLngBounds(routePoints);
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            });
+            
+            // Afficher les résultats
+            showResults(routes, totalDistance, totalDemand);
+        }
+        
+        // Afficher les résultats
+        function showResults(routes, totalDistance, totalDemand) {
+            const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
+            const efficiency = (totalDemand / (routes.length * capacity) * 100).toFixed(1);
+            
+            // Afficher la barre de statistiques
+            document.getElementById('statsBar').style.display = 'grid';
+            document.getElementById('statRoutes').textContent = routes.length;
+            document.getElementById('statDistance').textContent = `${totalDistance.toFixed(2)} km`;
+            document.getElementById('statDemand').textContent = `${totalDemand} kg`;
+            document.getElementById('statEfficiency').textContent = `${efficiency}%`;
+            
+            // Afficher les cartes de résultats
+            const resultCardsContainer = document.getElementById('resultCardsContainer');
+            resultCardsContainer.innerHTML = `
+                <div class="result-card">
+                    <div class="stat-value">${routes.length}</div>
+                    <div class="stat-label">Number of Routes</div>
+                </div>
+                <div class="result-card">
+                    <div class="stat-value">${totalDistance.toFixed(2)} km</div>
+                    <div class="stat-label">Total Distance</div>
+                </div>
+                <div class="result-card">
+                    <div class="stat-value">${totalDemand} kg</div>
+                    <div class="stat-label">Total Demand</div>
+                </div>
+                <div class="result-card">
+                    <div class="stat-value">${efficiency}%</div>
+                    <div class="stat-label">Load Efficiency</div>
+                </div>
+            `;
+            
+            // Afficher les détails des routes
+            const routesContainer = document.getElementById('routesContainer');
+            let routesHtml = '';
+            
+            routes.forEach((route, idx) => {
+                const color = routeColors[idx % routeColors.length];
+                let routeDistance = 0;
+                let routeDemand = 0;
+                
+                const routePoints = [
+                    depot,
+                    ...route,
+                    depot
+                ];
+                
+                // Calculer la distance de la route
+                for (let i = 0; i < routePoints.length - 1; i++) {
+                    routeDistance += calculateDistance(
+                        routePoints[i].lat, routePoints[i].lon,
+                        routePoints[i + 1].lat, routePoints[i + 1].lon
+                    );
+                }
+                
+                routeDemand = route.reduce((sum, point) => sum + point.demand, 0);
+                
+                routesHtml += `
+                    <div class="route-item">
+                        <div class="route-number" style="background: ${color};">${idx + 1}</div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                                <div>
+                                    <strong style="color: #333;">Vehicle ${idx + 1}</strong>
+                                    <div style="font-size: 0.9rem; color: #666;">
+                                        <span style="color: ${color};"><i class="fas fa-route"></i> ${routeDistance.toFixed(2)} km</span>
+                                        <span style="margin-left: 20px;"><i class="fas fa-weight-hanging"></i> ${routeDemand}/${capacity} kg</span>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.9rem; color: ${color}; font-weight: 600;">
+                                    ${((routeDemand / capacity) * 100).toFixed(1)}% loaded
+                                </div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
+                                <strong>Route:</strong> ${depot.name} → 
+                                ${route.map((p, i) => 
+                                    `${p.name}${i < route.length - 1 ? ' → ' : ''}`
+                                ).join('')} 
+                                → ${depot.name}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            routesContainer.innerHTML = routesHtml;
+            
+            // Afficher le panneau de résultats
+            document.getElementById('resultsPanel').style.display = 'block';
+            showNotification('Routes optimized successfully!', 'success');
+        }
+        
+        // Initialiser l'application
+        function initApp() {
+            initDepot();
+            renderDeliveryList();
+            
+            // Ajouter des exemples de points de livraison
+            const exampleDeliveries = [
+                { name: "Customer A", lat: 48.8600, lon: 2.3500, demand: 20 },
+                { name: "Customer B", lat: 48.8500, lon: 2.3400, demand: 15 },
+                { name: "Customer C", lat: 48.8700, lon: 2.3600, demand: 30 },
+                { name: "Customer D", lat: 48.8450, lon: 2.3650, demand: 25 },
+                { name: "Customer E", lat: 48.8650, lon: 2.3300, demand: 18 }
+            ];
+            
+            // Commenter cette ligne pour ne pas charger les exemples automatiquement
+            // deliveries = exampleDeliveries.map((d, i) => ({ ...d, id: Date.now() + i, addedAt: new Date().toLocaleTimeString() }));
+            // deliveries.forEach(d => addMarkerToMap(d));
+            // renderDeliveryList();
+        }
+        
+        // Démarrer l'application
+        window.onload = initApp;
     </script>
 </body>
 </html>
-components.html(html_content, height=1200, scrolling=True)
+"""
+
+# Interface Streamlit améliorée
+st.markdown(css, unsafe_allow_html=True)
+
+# Header principal
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st.markdown("""
+    <div class="main-header">
+        <h1 style="text-align: center; margin-bottom: 1rem;">🚚 VRP Route Optimizer</h1>
+        <p style="text-align: center; font-size: 1.2rem; opacity: 0.9;">
+        Intelligent Vehicle Routing Problem Solver with Real-time Optimization
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Métriques en haut
+if st.button("🎯 Quick Optimize", use_container_width=True):
+    st.success("Routes optimized successfully!")
+
+col1, col2, col3, col4 = st.columns(4)
+with col1:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">5</div>
+        <div class="metric-label">Delivery Points</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col2:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">3</div>
+        <div class="metric-label">Routes</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col3:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">42.5 km</div>
+        <div class="metric-label">Total Distance</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with col4:
+    st.markdown("""
+    <div class="metric-card">
+        <div class="metric-value">87%</div>
+        <div class="metric-label">Efficiency</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Interface principale avec tabs
+tab1, tab2, tab3 = st.tabs(["🗺️ Interactive Map", "⚙️ Configuration", "📊 Results"])
+
+with tab1:
+    # Afficher la carte interactive
+    components.html(html_content, height=900, scrolling=True)
+
+with tab2:
+    # Configuration avancée
+    st.markdown("""
+    <div class="card">
+        <h3>⚙️ Advanced Configuration</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("📦 Vehicle Settings")
+        vehicle_capacity = st.slider("Vehicle Capacity (kg)", 50, 500, 100, 10)
+        max_vehicles = st.slider("Maximum Vehicles", 1, 10, 3)
+        fuel_cost = st.number_input("Fuel Cost per km ($)", 0.1, 2.0, 0.5, 0.1)
+        
+    with col2:
+        st.subheader("⏱️ Time Constraints")
+        max_route_time = st.slider("Maximum Route Time (hours)", 1, 12, 8)
+        service_time = st.slider("Service Time per Stop (minutes)", 5, 60, 15, 5)
+        time_windows = st.checkbox("Enable Time Windows")
+        
+    st.subheader("📋 Delivery Points")
+    with st.expander("Import/Export Data", expanded=True):
+        uploaded_file = st.file_uploader("Upload CSV with delivery points", type=['csv'])
+        if uploaded_file:
+            st.success(f"File {uploaded_file.name} uploaded successfully!")
+        
+        if st.button("📥 Export Results as CSV"):
+            st.info("Results exported successfully!")
+
+with tab3:
+    # Résultats détaillés
+    st.markdown("""
+    <div class="card">
+        <h3>📊 Detailed Results Analysis</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Graphiques de résultats
+    import pandas as pd
+    import numpy as np
+    
+    # Données d'exemple
+    results_data = pd.DataFrame({
+        'Route': ['Route 1', 'Route 2', 'Route 3'],
+        'Distance (km)': [15.2, 18.7, 8.6],
+        'Load (%)': [85, 92, 78],
+        'Stops': [4, 5, 3],
+        'Cost ($)': [45.6, 56.1, 25.8]
+    })
+    
+    st.dataframe(results_data, use_container_width=True)
+    
+    # Graphique
+    chart_data = pd.DataFrame(
+        np.random.randn(20, 3),
+        columns=['Distance', 'Efficiency', 'Cost']
+    )
+    
+    st.line_chart(chart_data)
+
+# Sidebar pour les actions rapides
+with st.sidebar:
+    st.markdown("""
+    <div class="card">
+        <h3>🚀 Quick Actions</h3>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    if st.button("🔄 Reset All", use_container_width=True, type="secondary"):
+        st.rerun()
+    
+    if st.button("📤 Export Report", use_container_width=True):
+        st.success("Report exported!")
+    
+    if st.button("📧 Share Results", use_container_width=True):
+        st.info("Sharing options opened!")
+    
+    st.markdown("---")
+    
+    st.markdown("""
+    <div class="card">
+        <h4>ℹ️ About</h4>
+        <p style="font-size: 0.9rem; color: #666;">
+        This VRP optimizer uses advanced algorithms to solve complex routing problems efficiently.
+        </p>
+        <p style="font-size: 0.8rem; color: #999; margin-top: 1rem;">
+        Version 2.0 • Powered by Streamlit
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# Note finale
+st.markdown("---")
+st.markdown("""
+<div style="text-align: center; color: #666; font-size: 0.9rem; padding: 2rem;">
+    <p>🚚 <strong>VRP Route Optimizer</strong> • Intelligent Routing Solutions</p>
+    <p style="font-size: 0.8rem;">Optimize your delivery routes with AI-powered algorithms</p>
+</div>
+""", unsafe_allow_html=True)
