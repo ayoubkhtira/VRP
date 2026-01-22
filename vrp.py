@@ -167,8 +167,7 @@ st.markdown("""
         }
     }
 </style>
-""", unsafe_allow_html=True)
-
+"""
 # HTML/JavaScript avec fonctionnalité de sélection sur carte
 html_content = '''
 <!DOCTYPE html>
