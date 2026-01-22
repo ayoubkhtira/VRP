@@ -1,7 +1,7 @@
 import streamlit as st
 import streamlit.components.v1 as components
-import base64
-from io import StringIO
+import pandas as pd
+import json
 
 # Configuration de la page
 st.set_page_config(
@@ -11,141 +11,122 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Style CSS amélioré
-css = """
+# Style CSS amélioré avec animations
+st.markdown("""
 <style>
-    /* Variables CSS améliorées */
+    /* Variables CSS */
     :root {
-        --primary: #1e88e5;
-        --primary-dark: #1565c0;
-        --primary-light: #64b5f6;
-        --secondary: #ff9800;
-        --secondary-dark: #f57c00;
-        --success: #4caf50;
-        --warning: #ff9800;
-        --danger: #f44336;
-        --dark: #212121;
-        --light: #f5f5f5;
-        --gray: #757575;
+        --primary: #3B82F6;
+        --primary-dark: #2563EB;
+        --primary-light: #60A5FA;
+        --secondary: #10B981;
+        --accent: #F59E0B;
+        --danger: #EF4444;
+        --dark: #1F2937;
+        --light: #F9FAFB;
+        --gray: #6B7280;
         --border-radius: 12px;
-        --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        --transition: all 0.3s ease;
+        --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
     
     /* Styles généraux */
     .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
     }
     
+    /* Header principal */
     .main-header {
-        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-        color: white;
-        padding: 2rem;
+        background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+        backdrop-filter: blur(10px);
+        padding: 2.5rem;
         border-radius: var(--border-radius);
         margin-bottom: 2rem;
-        box-shadow: var(--box-shadow);
-        animation: fadeIn 0.8s ease-out;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        animation: slideDown 0.8s ease-out;
     }
     
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-20px); }
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-30px); }
         to { opacity: 1; transform: translateY(0); }
     }
     
-    .card {
-        background: white;
+    /* Cards */
+    .custom-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
         border-radius: var(--border-radius);
         padding: 1.5rem;
-        box-shadow: var(--box-shadow);
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.2);
         transition: var(--transition);
-        border: none;
         height: 100%;
     }
     
-    .card:hover {
+    .custom-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
     }
     
-    .metric-card {
-        background: white;
-        border-radius: var(--border-radius);
-        padding: 1.5rem;
-        text-align: center;
-        border-left: 5px solid var(--primary);
-        transition: var(--transition);
-    }
-    
-    .metric-card:hover {
-        transform: scale(1.02);
-    }
-    
-    .metric-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: var(--primary);
-        margin: 0.5rem 0;
-    }
-    
-    .metric-label {
-        color: var(--gray);
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-    }
-    
-    /* Boutons améliorés */
+    /* Boutons */
     .stButton > button {
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 0.75rem 1.5rem;
         font-weight: 600;
         transition: var(--transition);
         border: none;
-        background: var(--primary);
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
         color: white;
     }
     
     .stButton > button:hover {
-        background: var(--primary-dark);
         transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3);
     }
     
-    /* Inputs améliorés */
+    /* Inputs */
     .stTextInput > div > div > input,
-    .stNumberInput > div > div > input {
-        border-radius: 8px;
-        border: 2px solid #e0e0e0;
+    .stNumberInput > div > div > input,
+    .stSelectbox > div > div > select {
+        border-radius: 10px;
+        border: 2px solid #E5E7EB;
         transition: var(--transition);
+        background: white;
     }
     
     .stTextInput > div > div > input:focus,
-    .stNumberInput > div > div > input:focus {
+    .stNumberInput > div > div > input:focus,
+    .stSelectbox > div > div > select:focus {
         border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
     
-    /* Sidebar améliorée */
-    .css-1d391kg {
-        background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
-    }
-    
-    /* Tabs personnalisés */
+    /* Tabs */
     .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
+        gap: 1rem;
         background: transparent;
     }
     
     .stTabs [data-baseweb="tab"] {
-        border-radius: 8px 8px 0 0;
+        border-radius: 10px 10px 0 0;
         padding: 1rem 2rem;
         font-weight: 600;
         transition: var(--transition);
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--dark);
     }
     
     .stTabs [aria-selected="true"] {
         background: var(--primary);
         color: white;
+    }
+    
+    /* Sidebar */
+    .css-1d391kg {
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
     }
     
     /* Animations */
@@ -159,31 +140,47 @@ css = """
         animation: pulse 2s infinite;
     }
     
+    /* Scrollbar personnalisée */
+    ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+        background: var(--primary);
+        border-radius: 10px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-dark);
+    }
+    
     /* Responsive */
     @media (max-width: 768px) {
         .main-header {
-            padding: 1rem;
-        }
-        
-        .metric-value {
-            font-size: 1.5rem;
+            padding: 1.5rem;
         }
     }
 </style>
-"""
+""", unsafe_allow_html=True)
 
-# HTML/JS pour la carte et l'interface
-html_content = """
+# HTML/JavaScript avec fonctionnalité de sélection sur carte
+html_content = '''
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VRP Route Optimizer</title>
+    <title>VRP Route Optimizer with Map Selection</title>
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
     <style>
         * {
@@ -193,49 +190,30 @@ html_content = """
         }
         
         body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            overflow-x: hidden;
         }
         
         .container {
-            max-width: 1800px;
-            margin: 0 auto;
-            padding: 20px;
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
         }
         
         .app-wrapper {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
-            animation: slideUp 0.6s ease-out;
-        }
-        
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .glass-card {
-            background: rgba(255, 255, 255, 0.9);
-            backdrop-filter: blur(10px);
+            background: white;
             border-radius: 20px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            transition: all 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin: 20px;
+            animation: fadeIn 0.6s ease-out;
         }
         
-        .glass-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .header {
@@ -264,14 +242,14 @@ html_content = """
         }
         
         .logo {
-            font-size: 3.5rem;
+            font-size: 4rem;
             margin-bottom: 20px;
             animation: float 3s ease-in-out infinite;
         }
         
         @keyframes float {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-15px); }
         }
         
         h1 {
@@ -282,7 +260,7 @@ html_content = """
         }
         
         .subtitle {
-            font-size: 1.2rem;
+            font-size: 1.3rem;
             opacity: 0.9;
             max-width: 800px;
             margin: 0 auto;
@@ -293,27 +271,30 @@ html_content = """
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
-            margin: 30px 0;
-            padding: 0 20px;
+            margin: 30px;
+            padding: 0;
         }
         
         .stat-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
             padding: 25px;
             border-radius: 16px;
             text-align: center;
             transition: all 0.3s ease;
+            border: 2px solid transparent;
         }
         
         .stat-card:hover {
-            transform: scale(1.05);
+            transform: translateY(-5px);
+            border-color: #667eea;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.1);
         }
         
         .stat-value {
             font-size: 2.5rem;
             font-weight: 700;
             color: #667eea;
-            font-family: 'Roboto Mono', monospace;
+            margin: 10px 0;
         }
         
         .stat-label {
@@ -321,7 +302,6 @@ html_content = """
             color: #666;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-top: 10px;
         }
         
         .main-layout {
@@ -329,6 +309,7 @@ html_content = """
             grid-template-columns: 400px 1fr;
             gap: 30px;
             padding: 30px;
+            min-height: 800px;
         }
         
         @media (max-width: 1200px) {
@@ -344,6 +325,8 @@ html_content = """
             height: fit-content;
             position: sticky;
             top: 30px;
+            border: 2px solid #eef2ff;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.08);
         }
         
         .section {
@@ -352,11 +335,17 @@ html_content = """
             border-bottom: 2px solid #f0f0f0;
         }
         
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
         .section-title {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 1.3rem;
+            gap: 12px;
+            font-size: 1.2rem;
             font-weight: 600;
             color: #333;
             margin-bottom: 25px;
@@ -364,7 +353,43 @@ html_content = """
         
         .section-title i {
             color: #667eea;
-            font-size: 1.5rem;
+            font-size: 1.4rem;
+        }
+        
+        .mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .mode-btn {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: #555;
+        }
+        
+        .mode-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+        
+        .mode-btn:hover:not(.active) {
+            background: #e9ecef;
+            border-color: #667eea;
         }
         
         .input-group {
@@ -386,7 +411,7 @@ html_content = """
             border-radius: 12px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Inter', sans-serif;
         }
         
         .input-field:focus {
@@ -407,7 +432,7 @@ html_content = """
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-family: 'Poppins', sans-serif;
+            font-family: 'Inter', sans-serif;
             width: 100%;
         }
         
@@ -432,10 +457,23 @@ html_content = """
             border-color: #667eea;
         }
         
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+        
         .delivery-list {
             max-height: 300px;
             overflow-y: auto;
             margin-top: 20px;
+            border: 2px solid #f0f0f0;
+            border-radius: 12px;
+            padding: 15px;
         }
         
         .delivery-item {
@@ -447,6 +485,18 @@ html_content = """
             justify-content: space-between;
             align-items: center;
             transition: all 0.3s ease;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
         
         .delivery-item:hover {
@@ -458,20 +508,66 @@ html_content = """
             border-radius: 20px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            height: 600px;
+            height: 700px;
+            position: relative;
         }
         
         #map {
             width: 100%;
             height: 100%;
+            border-radius: 20px;
+        }
+        
+        .map-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            pointer-events: none;
+        }
+        
+        .map-overlay > * {
+            pointer-events: auto;
+        }
+        
+        .map-control {
+            background: white;
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .map-control i {
+            color: #667eea;
+            font-size: 1.2rem;
+        }
+        
+        .selection-mode {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            animation: pulse 2s infinite;
+        }
+        
+        .selection-mode i {
+            color: white;
         }
         
         .results-panel {
             background: white;
             border-radius: 20px;
             padding: 30px;
-            margin-top: 30px;
+            margin: 30px;
             animation: fadeIn 0.5s ease-out;
+            border: 2px solid #eef2ff;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.08);
         }
         
         .results-grid {
@@ -481,25 +577,24 @@ html_content = """
             margin: 30px 0;
         }
         
-        .result-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
-            padding: 25px;
-            border-radius: 16px;
-            text-align: center;
-        }
-        
         .route-item {
             background: #f8f9fa;
             border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 10px;
+            padding: 20px;
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 15px;
+            transition: all 0.3s ease;
+        }
+        
+        .route-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
         }
         
         .route-number {
-            background: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             width: 40px;
             height: 40px;
@@ -518,16 +613,17 @@ html_content = """
             left: 50%;
             transform: translate(-50%, -50%);
             background: rgba(255, 255, 255, 0.95);
-            padding: 30px 50px;
+            padding: 40px 60px;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
+            z-index: 2000;
             text-align: center;
+            backdrop-filter: blur(10px);
         }
         
         .spinner {
-            width: 50px;
-            height: 50px;
+            width: 60px;
+            height: 60px;
             border: 5px solid #f3f3f3;
             border-top: 5px solid #667eea;
             border-radius: 50%;
@@ -552,6 +648,7 @@ html_content = """
             transform: translateX(100%);
             opacity: 0;
             transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
         }
         
         .notification.show {
@@ -560,15 +657,35 @@ html_content = """
         }
         
         .notification.success {
-            background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.95) 0%, rgba(5, 150, 105, 0.95) 100%);
+            border-left: 5px solid #10b981;
         }
         
         .notification.error {
-            background: linear-gradient(135deg, #f44336 0%, #c62828 100%);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.95) 0%, rgba(220, 38, 38, 0.95) 100%);
+            border-left: 5px solid #ef4444;
         }
         
         .notification.info {
-            background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.95) 0%, rgba(37, 99, 235, 0.95) 100%);
+            border-left: 5px solid #3b82f6;
+        }
+        
+        .notification.warning {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.95) 0%, rgba(217, 119, 6, 0.95) 100%);
+            border-left: 5px solid #f59e0b;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6b7280;
+        }
+        
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            color: #9ca3af;
         }
         
         .color-indicator {
@@ -577,6 +694,54 @@ html_content = """
             border-radius: 50%;
             display: inline-block;
             margin-right: 10px;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .search-box {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            width: 300px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            background: white;
+        }
+        
+        .search-input:focus {
+            outline: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .leaflet-popup-content {
+            font-family: 'Inter', sans-serif;
+            max-width: 250px;
+        }
+        
+        .leaflet-control-zoom {
+            margin-top: 80px !important;
+        }
+        
+        .coordinates-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
         }
     </style>
 </head>
@@ -584,7 +749,10 @@ html_content = """
     <div class="loading" id="loading">
         <div class="spinner"></div>
         <h3>Optimizing Routes...</h3>
-        <p>This may take a few moments</p>
+        <p>Calculating the most efficient paths</p>
+        <div style="margin-top: 20px; font-size: 0.9rem; color: #6b7280;">
+            <i class="fas fa-cog fa-spin"></i> Running optimization algorithms...
+        </div>
     </div>
     
     <div class="container">
@@ -596,7 +764,7 @@ html_content = """
                     </div>
                     <h1>VRP Route Optimizer</h1>
                     <p class="subtitle">
-                        Advanced Vehicle Routing Problem Solver with Real-time Optimization and Interactive Visualization
+                        Advanced Vehicle Routing Problem Solver with Interactive Map Selection
                     </p>
                 </div>
             </div>
@@ -621,7 +789,31 @@ html_content = """
             </div>
             
             <div class="main-layout">
-                <div class="control-panel glass-card">
+                <div class="control-panel">
+                    <div class="section">
+                        <div class="section-title">
+                            <i class="fas fa-mouse-pointer"></i>
+                            <span>Map Selection Mode</span>
+                        </div>
+                        <div class="mode-selector">
+                            <button class="mode-btn" id="modeNone" onclick="setSelectionMode('none')">
+                                <i class="fas fa-hand-pointer"></i> Navigation
+                            </button>
+                            <button class="mode-btn" id="modeDepot" onclick="setSelectionMode('depot')">
+                                <i class="fas fa-warehouse"></i> Select Depot
+                            </button>
+                            <button class="mode-btn" id="modeDelivery" onclick="setSelectionMode('delivery')">
+                                <i class="fas fa-map-marker-alt"></i> Select Delivery
+                            </button>
+                        </div>
+                        <div class="input-group">
+                            <label class="input-label">Current Mode</label>
+                            <div id="currentModeDisplay" class="input-field" style="background: #f0f9ff; color: #0369a1; font-weight: 600;">
+                                Navigation Mode (Click buttons to change)
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="section">
                         <div class="section-title">
                             <i class="fas fa-warehouse"></i>
@@ -640,7 +832,7 @@ html_content = """
                             <input type="number" id="depotLon" class="input-field" value="2.3522" step="0.0001">
                         </div>
                         <button class="btn btn-secondary" onclick="updateDepot()">
-                            <i class="fas fa-sync-alt"></i> Update Depot
+                            <i class="fas fa-sync-alt"></i> Update Depot Manually
                         </button>
                     </div>
                     
@@ -654,12 +846,12 @@ html_content = """
                             <input type="text" id="deliveryName" class="input-field" placeholder="Enter customer name">
                         </div>
                         <div class="input-group">
-                            <label class="input-label">Latitude</label>
-                            <input type="number" id="deliveryLat" class="input-field" step="0.0001" placeholder="48.8600">
+                            <label class="input-label">Latitude (from map click)</label>
+                            <input type="number" id="deliveryLat" class="input-field" step="0.0001" placeholder="Click on map or enter manually">
                         </div>
                         <div class="input-group">
-                            <label class="input-label">Longitude</label>
-                            <input type="number" id="deliveryLon" class="input-field" step="0.0001" placeholder="2.3500">
+                            <label class="input-label">Longitude (from map click)</label>
+                            <input type="number" id="deliveryLon" class="input-field" step="0.0001" placeholder="Click on map or enter manually">
                         </div>
                         <div class="input-group">
                             <label class="input-label">Demand (kg)</label>
@@ -668,22 +860,29 @@ html_content = """
                         <button class="btn btn-primary" onclick="addDelivery()">
                             <i class="fas fa-plus"></i> Add Delivery Point
                         </button>
+                        <button class="btn btn-success" onclick="addDeliveryAndContinue()" style="margin-top: 10px;">
+                            <i class="fas fa-plus-circle"></i> Add & Continue
+                        </button>
                     </div>
                     
                     <div class="section">
                         <div class="section-title">
                             <i class="fas fa-list-ol"></i>
                             <span>Delivery Points</span>
-                            <span class="badge" id="deliveryCount">0</span>
+                            <span class="badge" id="deliveryCount" style="background: #667eea; color: white; padding: 5px 10px; border-radius: 20px; font-size: 0.9rem;">0</span>
                         </div>
                         <div class="delivery-list" id="deliveryList">
                             <div class="empty-state">
                                 <i class="fas fa-inbox"></i>
                                 <p>No delivery points added yet</p>
+                                <p style="font-size: 0.9rem; margin-top: 10px;">Click on map or use the form above</p>
                             </div>
                         </div>
                         <button class="btn btn-secondary" onclick="clearDeliveries()" style="margin-top: 15px;">
-                            <i class="fas fa-trash"></i> Clear All
+                            <i class="fas fa-trash"></i> Clear All Deliveries
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportDeliveries()" style="margin-top: 10px;">
+                            <i class="fas fa-download"></i> Export to CSV
                         </button>
                     </div>
                     
@@ -701,96 +900,355 @@ html_content = """
                             <input type="number" id="maxVehicles" class="input-field" value="3" min="1" step="1">
                         </div>
                         <div class="input-group">
-                            <label class="input-label">Algorithm</label>
+                            <label class="input-label">Optimization Algorithm</label>
                             <select id="algorithm" class="input-field">
                                 <option value="nearest">Nearest Neighbor</option>
                                 <option value="savings">Clarke & Wright Savings</option>
                                 <option value="sweep">Sweep Algorithm</option>
+                                <option value="genetic">Genetic Algorithm (Advanced)</option>
                             </select>
                         </div>
-                        <button class="btn btn-primary pulse" onclick="optimizeRoutes()">
+                        <div class="input-group">
+                            <label class="input-label">Optimization Priority</label>
+                            <select id="priority" class="input-field">
+                                <option value="distance">Minimize Distance</option>
+                                <option value="time">Minimize Time</option>
+                                <option value="balance">Balance Routes</option>
+                                <option value="cost">Minimize Cost</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary pulse" onclick="optimizeRoutes()" style="font-size: 1.1rem;">
                             <i class="fas fa-bolt"></i> Optimize Routes
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearRoutes()" style="margin-top: 10px;">
+                            <i class="fas fa-eraser"></i> Clear Routes
                         </button>
                     </div>
                 </div>
                 
-                <div class="map-container glass-card">
+                <div class="map-container">
+                    <div class="map-overlay">
+                        <div class="map-control" id="modeIndicator">
+                            <i class="fas fa-hand-pointer"></i>
+                            <span>Navigation Mode</span>
+                        </div>
+                        <div class="map-control">
+                            <i class="fas fa-layer-group"></i>
+                            <span>Click on map to select locations</span>
+                        </div>
+                    </div>
+                    
+                    <div class="search-box">
+                        <input type="text" id="searchInput" class="search-input" placeholder="Search location...">
+                    </div>
+                    
+                    <div class="coordinates-display" id="coordinatesDisplay">
+                        <div>Lat: <span id="currentLat">48.8566</span></div>
+                        <div>Lng: <span id="currentLng">2.3522</span></div>
+                    </div>
+                    
                     <div id="map"></div>
                 </div>
             </div>
             
             <div class="results-panel" id="resultsPanel" style="display: none;">
-                <h2 style="margin-bottom: 30px; color: #333;">
+                <h2 style="margin-bottom: 30px; color: #333; display: flex; align-items: center; gap: 10px;">
                     <i class="fas fa-chart-line"></i> Optimization Results
                 </h2>
                 
                 <div class="results-grid" id="resultCardsContainer"></div>
                 
                 <div style="margin-top: 40px;">
-                    <h3 style="margin-bottom: 20px; color: #333;">
-                        <i class="fas fa-route"></i> Route Details
-                    </h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3 style="color: #333; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-route"></i> Route Details
+                        </h3>
+                        <button class="btn btn-secondary" onclick="exportRoutes()" style="width: auto; padding: 10px 20px;">
+                            <i class="fas fa-file-export"></i> Export Routes
+                        </button>
+                    </div>
                     <div id="routesContainer"></div>
+                </div>
+                
+                <div class="section" style="margin-top: 40px;">
+                    <div class="section-title">
+                        <i class="fas fa-chart-bar"></i>
+                        <span>Performance Metrics</span>
+                    </div>
+                    <div id="metricsContainer"></div>
                 </div>
             </div>
         </div>
     </div>
     
     <script>
-        // Initialisation de la carte Leaflet
-        const map = L.map('map').setView([48.8566, 2.3522], 12);
-        
-        // Couches de tuiles
-        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
-        
-        // Couche satellite
-        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri',
-            maxZoom: 19
-        });
-        
-        // Contrôle des couches
-        const baseLayers = {
-            "OpenStreetMap": osmLayer,
-            "Satellite": satelliteLayer
-        };
-        L.control.layers(baseLayers).addTo(map);
-        
+        // Variables globales
+        let map;
         let markers = {};
         let routePolylines = [];
         let deliveries = [];
         let depot = { lat: 48.8566, lon: 2.3522, name: 'Main Depot' };
-        
-        // Icones personnalisées
-        const depotIcon = L.divIcon({
-            html: '<div style="background: #667eea; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; border: 3px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.3);"><i class="fas fa-warehouse"></i></div>',
-            className: 'custom-depot-icon',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        });
-        
-        const deliveryIcon = L.divIcon({
-            html: '<div style="background: #ff9800; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 16px; border: 2px solid white; box-shadow: 0 0 8px rgba(0,0,0,0.2);"><i class="fas fa-map-marker-alt"></i></div>',
-            className: 'custom-delivery-icon',
-            iconSize: [32, 32],
-            iconAnchor: [16, 16]
-        });
+        let selectionMode = 'none'; // 'none', 'depot', 'delivery'
+        let currentMarker = null;
+        let searchMarker = null;
         
         // Couleurs pour les routes
-        const routeColors = ['#667eea', '#ff9800', '#4CAF50', '#f44336', '#9C27B0', '#00BCD4', '#FFC107', '#8BC34A'];
+        const routeColors = [
+            '#3B82F6', '#10B981', '#F59E0B', '#EF4444', 
+            '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'
+        ];
         
-        // Initialiser le dépôt
-        function initDepot() {
-            if (markers.depot) map.removeLayer(markers.depot);
+        // Initialisation de la carte
+        function initMap() {
+            // Créer la carte
+            map = L.map('map').setView([depot.lat, depot.lon], 13);
             
-            const marker = L.marker([depot.lat, depot.lon], { icon: depotIcon })
+            // Couches de base
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+            
+            const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: '© Esri',
+                maxZoom: 19
+            });
+            
+            // Contrôle des couches
+            const baseLayers = {
+                "OpenStreetMap": osmLayer,
+                "Satellite": satelliteLayer
+            };
+            
+            L.control.layers(baseLayers).addTo(map);
+            
+            // Contrôle de recherche
+            initSearch();
+            
+            // Ajouter le dépôt initial
+            addDepotMarker();
+            
+            // Écouter les clics sur la carte
+            map.on('click', function(e) {
+                handleMapClick(e.latlng.lat, e.latlng.lng);
+            });
+            
+            // Mettre à jour l'affichage des coordonnées au mouvement de la souris
+            map.on('mousemove', function(e) {
+                updateCoordinatesDisplay(e.latlng.lat, e.latlng.lng);
+            });
+            
+            // Afficher les coordonnées initiales
+            updateCoordinatesDisplay(depot.lat, depot.lon);
+        }
+        
+        // Initialiser la recherche
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchLocation(this.value);
+                }
+            });
+        }
+        
+        // Rechercher un lieu
+        function searchLocation(query) {
+            if (!query) return;
+            
+            const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`;
+            
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        const result = data[0];
+                        const lat = parseFloat(result.lat);
+                        const lon = parseFloat(result.lon);
+                        
+                        // Centrer la carte sur le résultat
+                        map.setView([lat, lon], 15);
+                        
+                        // Ajouter un marqueur
+                        if (searchMarker) {
+                            map.removeLayer(searchMarker);
+                        }
+                        
+                        searchMarker = L.marker([lat, lon], {
+                            icon: L.icon({
+                                iconUrl: 'data:image/svg+xml;base64,' + btoa(`
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#EF4444" width="32" height="32">
+                                        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                    </svg>
+                                `),
+                                iconSize: [32, 32],
+                                iconAnchor: [16, 32]
+                            })
+                        }).addTo(map)
+                        .bindPopup(`<b>Search Result:</b><br>${result.display_name}`)
+                        .openPopup();
+                        
+                        showNotification(`Location found: ${result.display_name.split(',')[0]}`, 'success');
+                        
+                        // Si en mode sélection, remplir les champs
+                        if (selectionMode === 'depot') {
+                            document.getElementById('depotLat').value = lat.toFixed(6);
+                            document.getElementById('depotLon').value = lon.toFixed(6);
+                            showNotification('Coordinates filled for depot', 'info');
+                        } else if (selectionMode === 'delivery') {
+                            document.getElementById('deliveryLat').value = lat.toFixed(6);
+                            document.getElementById('deliveryLon').value = lon.toFixed(6);
+                            showNotification('Coordinates filled for delivery', 'info');
+                        }
+                    } else {
+                        showNotification('Location not found', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Search error:', error);
+                    showNotification('Search failed', 'error');
+                });
+        }
+        
+        // Gérer le clic sur la carte
+        function handleMapClick(lat, lng) {
+            updateCoordinatesDisplay(lat, lng);
+            
+            // Si un marqueur temporaire existe, le supprimer
+            if (currentMarker) {
+                map.removeLayer(currentMarker);
+            }
+            
+            // Ajouter un marqueur temporaire
+            currentMarker = L.circleMarker([lat, lng], {
+                radius: 8,
+                fillColor: getColorForMode(),
+                color: '#ffffff',
+                weight: 2,
+                fillOpacity: 0.8
+            }).addTo(map);
+            
+            // Selon le mode, remplir les champs appropriés
+            if (selectionMode === 'depot') {
+                document.getElementById('depotLat').value = lat.toFixed(6);
+                document.getElementById('depotLon').value = lng.toFixed(6);
+                showNotification('Depot coordinates selected from map', 'success');
+                
+                // Désactiver le mode après sélection
+                setTimeout(() => setSelectionMode('none'), 1000);
+            } else if (selectionMode === 'delivery') {
+                document.getElementById('deliveryLat').value = lat.toFixed(6);
+                document.getElementById('deliveryLon').value = lng.toFixed(6);
+                showNotification('Delivery coordinates selected from map', 'success');
+                
+                // Demander le nom si vide
+                if (!document.getElementById('deliveryName').value.trim()) {
+                    document.getElementById('deliveryName').value = `Customer ${deliveries.length + 1}`;
+                }
+                
+                // Désactiver le mode après sélection
+                setTimeout(() => setSelectionMode('none'), 1000);
+            } else {
+                showNotification(`Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`, 'info');
+            }
+        }
+        
+        // Mettre à jour l'affichage des coordonnées
+        function updateCoordinatesDisplay(lat, lng) {
+            document.getElementById('currentLat').textContent = lat.toFixed(6);
+            document.getElementById('currentLng').textContent = lng.toFixed(6);
+        }
+        
+        // Obtenir la couleur selon le mode
+        function getColorForMode() {
+            switch(selectionMode) {
+                case 'depot': return '#3B82F6'; // Bleu
+                case 'delivery': return '#10B981'; // Vert
+                default: return '#6B7280'; // Gris
+            }
+        }
+        
+        // Définir le mode de sélection
+        function setSelectionMode(mode) {
+            selectionMode = mode;
+            
+            // Mettre à jour les boutons
+            document.getElementById('modeNone').classList.toggle('active', mode === 'none');
+            document.getElementById('modeDepot').classList.toggle('active', mode === 'depot');
+            document.getElementById('modeDelivery').classList.toggle('active', mode === 'delivery');
+            
+            // Mettre à jour l'indicateur
+            const modeIndicator = document.getElementById('modeIndicator');
+            const modeDisplay = document.getElementById('currentModeDisplay');
+            
+            switch(mode) {
+                case 'none':
+                    modeIndicator.innerHTML = '<i class="fas fa-hand-pointer"></i> Navigation Mode';
+                    modeIndicator.className = 'map-control';
+                    modeDisplay.textContent = 'Navigation Mode';
+                    modeDisplay.style.background = '#f0f9ff';
+                    modeDisplay.style.color = '#0369a1';
+                    showNotification('Navigation mode activated', 'info');
+                    break;
+                    
+                case 'depot':
+                    modeIndicator.innerHTML = '<i class="fas fa-warehouse"></i> Selecting Depot';
+                    modeIndicator.className = 'map-control selection-mode';
+                    modeDisplay.textContent = 'Depot Selection Mode - Click on map to select depot location';
+                    modeDisplay.style.background = '#dbeafe';
+                    modeDisplay.style.color = '#1e40af';
+                    showNotification('Click on map to select depot location', 'warning');
+                    break;
+                    
+                case 'delivery':
+                    modeIndicator.innerHTML = '<i class="fas fa-map-marker-alt"></i> Selecting Delivery';
+                    modeIndicator.className = 'map-control selection-mode';
+                    modeDisplay.textContent = 'Delivery Selection Mode - Click on map to select delivery location';
+                    modeDisplay.style.background = '#d1fae5';
+                    modeDisplay.style.color = '#065f46';
+                    showNotification('Click on map to select delivery location', 'warning');
+                    break;
+            }
+            
+            // Changer le curseur de la carte
+            const mapContainer = document.getElementById('map');
+            if (mode === 'none') {
+                mapContainer.style.cursor = 'grab';
+            } else {
+                mapContainer.style.cursor = 'crosshair';
+                showNotification(`Click on the map to select ${mode} location`, 'info');
+            }
+        }
+        
+        // Ajouter le marqueur du dépôt
+        function addDepotMarker() {
+            if (markers.depot) {
+                map.removeLayer(markers.depot);
+            }
+            
+            const depotIcon = L.divIcon({
+                html: `
+                    <div style="background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%); 
+                                width: 50px; height: 50px; border-radius: 50%; 
+                                display: flex; align-items: center; justify-content: center; 
+                                color: white; font-size: 20px; border: 3px solid white; 
+                                box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);">
+                        <i class="fas fa-warehouse"></i>
+                    </div>
+                `,
+                className: 'custom-depot-icon',
+                iconSize: [50, 50],
+                iconAnchor: [25, 50]
+            });
+            
+            markers.depot = L.marker([depot.lat, depot.lon], { icon: depotIcon })
                 .addTo(map)
-                .bindPopup(`<b>${depot.name}</b><br>Depot Location<br>Lat: ${depot.lat.toFixed(4)}<br>Lon: ${depot.lon.toFixed(4)}`);
-            
-            markers.depot = marker;
+                .bindPopup(`
+                    <b>${depot.name}</b><br>
+                    Depot Location<br>
+                    Coordinates: ${depot.lat.toFixed(6)}, ${depot.lon.toFixed(6)}
+                `);
         }
         
         // Mettre à jour le dépôt
@@ -805,8 +1263,8 @@ html_content = """
             }
             
             depot = { name, lat, lon };
-            initDepot();
-            map.setView([depot.lat, depot.lon], 12);
+            addDepotMarker();
+            map.setView([depot.lat, depot.lon], 13);
             showNotification('Depot location updated successfully', 'success');
         }
         
@@ -833,25 +1291,46 @@ html_content = """
             
             deliveries.push(delivery);
             renderDeliveryList();
-            addMarkerToMap(delivery);
+            addDeliveryMarker(delivery);
             
-            // Réinitialiser les champs
+            // Réinitialiser les champs (sauf la demande)
             document.getElementById('deliveryName').value = '';
             document.getElementById('deliveryLat').value = '';
             document.getElementById('deliveryLon').value = '';
-            document.getElementById('deliveryDemand').value = '10';
             
             showNotification(`Delivery point "${name}" added successfully`, 'success');
         }
         
-        // Ajouter un marqueur sur la carte
-        function addMarkerToMap(delivery) {
+        // Ajouter et continuer
+        function addDeliveryAndContinue() {
+            addDelivery();
+            // Réactiver le mode de sélection
+            setTimeout(() => setSelectionMode('delivery'), 500);
+        }
+        
+        // Ajouter un marqueur de livraison
+        function addDeliveryMarker(delivery) {
+            const deliveryIcon = L.divIcon({
+                html: `
+                    <div style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); 
+                                width: 40px; height: 40px; border-radius: 50%; 
+                                display: flex; align-items: center; justify-content: center; 
+                                color: white; font-size: 16px; border: 2px solid white; 
+                                box-shadow: 0 3px 10px rgba(16, 185, 129, 0.4);">
+                        <i class="fas fa-map-marker-alt"></i>
+                    </div>
+                `,
+                className: 'custom-delivery-icon',
+                iconSize: [40, 40],
+                iconAnchor: [20, 40]
+            });
+            
             const marker = L.marker([delivery.lat, delivery.lon], { icon: deliveryIcon })
                 .addTo(map)
                 .bindPopup(`
                     <b>${delivery.name}</b><br>
                     Demand: ${delivery.demand} kg<br>
-                    Location: ${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}<br>
+                    Location: ${delivery.lat.toFixed(6)}, ${delivery.lon.toFixed(6)}<br>
                     Added: ${delivery.addedAt}
                 `);
             
@@ -868,6 +1347,7 @@ html_content = """
                     <div class="empty-state">
                         <i class="fas fa-inbox"></i>
                         <p>No delivery points added yet</p>
+                        <p style="font-size: 0.9rem; margin-top: 10px;">Click on map or use the form above</p>
                     </div>
                 `;
                 countElement.textContent = '0';
@@ -882,18 +1362,23 @@ html_content = """
                 div.className = 'delivery-item';
                 div.innerHTML = `
                     <div style="flex: 1;">
-                        <div style="font-weight: 600; color: #333;">${delivery.name}</div>
-                        <div style="font-size: 0.9rem; color: #666;">
-                            ${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 5px;">
+                            <div style="background: #10B981; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
+                                ${index + 1}
+                            </div>
+                            <div style="font-weight: 600; color: #333;">${delivery.name}</div>
                         </div>
-                        <div style="font-size: 0.9rem; color: #667eea; font-weight: 500;">
+                        <div style="font-size: 0.9rem; color: #666; margin-bottom: 3px;">
+                            <i class="fas fa-map-marker-alt"></i> ${delivery.lat.toFixed(4)}, ${delivery.lon.toFixed(4)}
+                        </div>
+                        <div style="font-size: 0.9rem; color: #10B981; font-weight: 500;">
                             <i class="fas fa-weight-hanging"></i> ${delivery.demand} kg
                         </div>
                     </div>
-                    <button onclick="removeDelivery(${delivery.id})" 
-                            style="background: #f44336; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.3s ease;"
-                            onmouseover="this.style.transform='scale(1.1)'" 
-                            onmouseout="this.style.transform='scale(1)'">
+                    <button onclick="removeDelivery('${delivery.id}')" 
+                            style="background: #EF4444; color: white; border: none; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center;"
+                            onmouseover="this.style.transform='scale(1.1)'; this.style.background='#DC2626'" 
+                            onmouseout="this.style.transform='scale(1)'; this.style.background='#EF4444'">
                         <i class="fas fa-times"></i>
                     </button>
                 `;
@@ -903,7 +1388,7 @@ html_content = """
         
         // Supprimer une livraison
         function removeDelivery(id) {
-            deliveries = deliveries.filter(d => d.id !== id);
+            deliveries = deliveries.filter(d => d.id != id);
             
             if (markers[id]) {
                 map.removeLayer(markers[id]);
@@ -933,13 +1418,39 @@ html_content = """
             showNotification('All delivery points cleared', 'info');
         }
         
+        // Exporter les livraisons
+        function exportDeliveries() {
+            if (deliveries.length === 0) {
+                showNotification('No delivery points to export', 'error');
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,Name,Latitude,Longitude,Demand(kg),AddedAt\\n";
+            
+            deliveries.forEach(delivery => {
+                csvContent += `${delivery.name},${delivery.lat},${delivery.lon},${delivery.demand},${delivery.addedAt}\\n`;
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "delivery_points.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('Delivery points exported to CSV', 'success');
+        }
+        
         // Afficher une notification
         function showNotification(message, type = 'info') {
             const notification = document.createElement('div');
             notification.className = `notification ${type}`;
             notification.innerHTML = `
-                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i>
-                ${message}
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                    <span>${message}</span>
+                </div>
             `;
             
             document.body.appendChild(notification);
@@ -953,7 +1464,7 @@ html_content = """
                 setTimeout(() => {
                     document.body.removeChild(notification);
                 }, 300);
-            }, 3000);
+            }, 4000);
         }
         
         // Afficher le chargement
@@ -972,6 +1483,7 @@ html_content = """
             routePolylines = [];
             document.getElementById('resultsPanel').style.display = 'none';
             document.getElementById('statsBar').style.display = 'none';
+            showNotification('Routes cleared', 'info');
         }
         
         // Calculer la distance (formule de Haversine)
@@ -986,7 +1498,7 @@ html_content = """
             return R * c;
         }
         
-        // Algorithme du plus proche voisin
+        // Algorithme du plus proche voisin amélioré
         function nearestNeighborAlgorithm(capacity, maxVehicles) {
             if (deliveries.length === 0) return [];
             
@@ -994,491 +1506,31 @@ html_content = """
             const routes = [];
             let vehicleCount = 0;
             
+            // Trier par distance au dépôt
+            unvisited.sort((a, b) => {
+                const distA = calculateDistance(depot.lat, depot.lon, a.lat, a.lon);
+                const distB = calculateDistance(depot.lat, depot.lon, b.lat, b.lon);
+                return distA - distB;
+            });
+            
             while (unvisited.length > 0 && vehicleCount < maxVehicles) {
                 const route = [];
                 let currentLoad = 0;
                 let currentLocation = depot;
                 
-                while (unvisited.length > 0) {
-                    let nearestIdx = -1;
-                    let nearestDist = Infinity;
-                    
-                    // Trouver le point non visité le plus proche
-                    for (let i = 0; i < unvisited.length; i++) {
-                        if (currentLoad + unvisited[i].demand <= capacity) {
-                            const dist = calculateDistance(
-                                currentLocation.lat, currentLocation.lon,
-                                unvisited[i].lat, unvisited[i].lon
-                            );
-                            
-                            if (dist < nearestDist) {
-                                nearestDist = dist;
-                                nearestIdx = i;
-                            }
-                        }
+                // Prendre le point le plus proche du dépôt comme premier point
+                if (unvisited.length > 0) {
+                    const firstPoint = unvisited.shift();
+                    if (firstPoint.demand <= capacity) {
+                        route.push(firstPoint);
+                        currentLoad += firstPoint.demand;
+                        currentLocation = firstPoint;
+                    } else {
+                        // Si la demande du premier point est trop grande, le remettre
+                        unvisited.unshift(firstPoint);
+                        break;
                     }
-                    
-                    // Si aucun point ne peut être ajouté, terminer cette route
-                    if (nearestIdx === -1) break;
-                    
-                    // Ajouter le point à la route
-                    const nextPoint = unvisited.splice(nearestIdx, 1)[0];
-                    route.push(nextPoint);
-                    currentLoad += nextPoint.demand;
-                    currentLocation = nextPoint;
                 }
                 
-                if (route.length > 0) {
-                    routes.push(route);
-                    vehicleCount++;
-                } else {
-                    break;
-                }
-            }
-            
-            // Si des points restent non affectés, les ajouter à la dernière route
-            if (unvisited.length > 0) {
-                if (routes.length === 0) {
-                    routes.push([...unvisited]);
-                } else {
-                    routes[routes.length - 1] = [...routes[routes.length - 1], ...unvisited];
-                }
-            }
-            
-            return routes;
-        }
-        
-        // Algorithme de Clarke & Wright Savings
-        function savingsAlgorithm(capacity, maxVehicles) {
-            if (deliveries.length === 0) return [];
-            
-            // Calculer les économies
-            const savings = [];
-            for (let i = 0; i < deliveries.length; i++) {
-                for (let j = i + 1; j < deliveries.length; j++) {
-                    const saving = calculateDistance(depot.lat, depot.lon, deliveries[i].lat, deliveries[i].lon) +
-                                 calculateDistance(depot.lat, depot.lon, deliveries[j].lat, deliveries[j].lon) -
-                                 calculateDistance(deliveries[i].lat, deliveries[i].lon, deliveries[j].lat, deliveries[j].lon);
-                    
-                    savings.push({
-                        i, j, saving,
-                        demand: deliveries[i].demand + deliveries[j].demand
-                    });
-                }
-            }
-            
-            // Trier par économie décroissante
-            savings.sort((a, b) => b.saving - a.saving);
-            
-            // Initialiser chaque point comme une route séparée
-            const routes = deliveries.map(d => [d]);
-            const routeLoads = deliveries.map(d => d.demand);
-            
-            // Fusionner les routes selon les économies
-            for (const saving of savings) {
-                if (routes.length <= maxVehicles) break;
-                
-                const routeI = routes.findIndex(route => route.includes(deliveries[saving.i]));
-                const routeJ = routes.findIndex(route => route.includes(deliveries[saving.j]));
-                
-                if (routeI !== routeJ && routeLoads[routeI] + routeLoads[routeJ] <= capacity) {
-                    // Fusionner les routes
-                    routes[routeI] = [...routes[routeI], ...routes[routeJ]];
-                    routeLoads[routeI] += routeLoads[routeJ];
-                    
-                    // Supprimer la route fusionnée
-                    routes.splice(routeJ, 1);
-                    routeLoads.splice(routeJ, 1);
-                }
-            }
-            
-            return routes;
-        }
-        
-        // Optimiser les routes
-        function optimizeRoutes() {
-            if (deliveries.length === 0) {
-                showNotification('Please add delivery points first', 'error');
-                return;
-            }
-            
-            showLoading();
-            clearRoutes();
-            
-            setTimeout(() => {
-                const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
-                const maxVehicles = parseInt(document.getElementById('maxVehicles').value);
-                const algorithm = document.getElementById('algorithm').value;
-                
-                let routes = [];
-                
-                // Sélectionner l'algorithme
-                switch(algorithm) {
-                    case 'nearest':
-                        routes = nearestNeighborAlgorithm(capacity, maxVehicles);
-                        break;
-                    case 'savings':
-                        routes = savingsAlgorithm(capacity, maxVehicles);
-                        break;
-                    case 'sweep':
-                        // Algorithme de balayage simple
-                        routes = nearestNeighborAlgorithm(capacity, maxVehicles);
-                        break;
-                    default:
-                        routes = nearestNeighborAlgorithm(capacity, maxVehicles);
-                }
-                
-                // Afficher les routes sur la carte
-                displayRoutes(routes);
-                hideLoading();
-            }, 1000);
-        }
-        
-        // Afficher les routes
-        function displayRoutes(routes) {
-            clearRoutes();
-            
-            let totalDistance = 0;
-            let totalDemand = 0;
-            
-            // Afficher chaque route
-            routes.forEach((route, routeIdx) => {
-                const color = routeColors[routeIdx % routeColors.length];
-                let routeDistance = 0;
-                let routeDemand = 0;
-                
-                // Calculer la demande totale de la route
-                route.forEach(point => {
-                    routeDemand += point.demand;
-                    totalDemand += point.demand;
-                });
-                
-                // Créer les points de la route (dépôt -> points -> dépôt)
-                const routePoints = [
-                    [depot.lat, depot.lon],
-                    ...route.map(point => [point.lat, point.lon]),
-                    [depot.lat, depot.lon]
-                ];
-                
-                // Calculer la distance de la route
-                for (let i = 0; i < routePoints.length - 1; i++) {
-                    routeDistance += calculateDistance(
-                        routePoints[i][0], routePoints[i][1],
-                        routePoints[i + 1][0], routePoints[i + 1][1]
-                    );
-                }
-                
-                totalDistance += routeDistance;
-                
-                // Dessiner la polyligne
-                const polyline = L.polyline(routePoints, {
-                    color: color,
-                    weight: 4,
-                    opacity: 0.8,
-                    dashArray: routeIdx % 2 === 0 ? null : '10, 10'
-                }).addTo(map);
-                
-                // Ajouter un marqueur pour le véhicule
-                const vehicleMarker = L.circleMarker(routePoints[1], {
-                    radius: 8,
-                    fillColor: color,
-                    color: 'white',
-                    weight: 2,
-                    fillOpacity: 1
-                }).addTo(map)
-                .bindPopup(`<b>Vehicle ${routeIdx + 1}</b><br>Route distance: ${routeDistance.toFixed(2)} km<br>Load: ${routeDemand} kg`);
-                
-                routePolylines.push(polyline);
-                routePolylines.push(vehicleMarker);
-                
-                // Ajuster la vue de la carte
-                if (routeIdx === 0) {
-                    const bounds = L.latLngBounds(routePoints);
-                    map.fitBounds(bounds, { padding: [50, 50] });
-                }
-            });
-            
-            // Afficher les résultats
-            showResults(routes, totalDistance, totalDemand);
-        }
-        
-        // Afficher les résultats
-        function showResults(routes, totalDistance, totalDemand) {
-            const capacity = parseFloat(document.getElementById('vehicleCapacity').value);
-            const efficiency = (totalDemand / (routes.length * capacity) * 100).toFixed(1);
-            
-            // Afficher la barre de statistiques
-            document.getElementById('statsBar').style.display = 'grid';
-            document.getElementById('statRoutes').textContent = routes.length;
-            document.getElementById('statDistance').textContent = `${totalDistance.toFixed(2)} km`;
-            document.getElementById('statDemand').textContent = `${totalDemand} kg`;
-            document.getElementById('statEfficiency').textContent = `${efficiency}%`;
-            
-            // Afficher les cartes de résultats
-            const resultCardsContainer = document.getElementById('resultCardsContainer');
-            resultCardsContainer.innerHTML = `
-                <div class="result-card">
-                    <div class="stat-value">${routes.length}</div>
-                    <div class="stat-label">Number of Routes</div>
-                </div>
-                <div class="result-card">
-                    <div class="stat-value">${totalDistance.toFixed(2)} km</div>
-                    <div class="stat-label">Total Distance</div>
-                </div>
-                <div class="result-card">
-                    <div class="stat-value">${totalDemand} kg</div>
-                    <div class="stat-label">Total Demand</div>
-                </div>
-                <div class="result-card">
-                    <div class="stat-value">${efficiency}%</div>
-                    <div class="stat-label">Load Efficiency</div>
-                </div>
-            `;
-            
-            // Afficher les détails des routes
-            const routesContainer = document.getElementById('routesContainer');
-            let routesHtml = '';
-            
-            routes.forEach((route, idx) => {
-                const color = routeColors[idx % routeColors.length];
-                let routeDistance = 0;
-                let routeDemand = 0;
-                
-                const routePoints = [
-                    depot,
-                    ...route,
-                    depot
-                ];
-                
-                // Calculer la distance de la route
-                for (let i = 0; i < routePoints.length - 1; i++) {
-                    routeDistance += calculateDistance(
-                        routePoints[i].lat, routePoints[i].lon,
-                        routePoints[i + 1].lat, routePoints[i + 1].lon
-                    );
-                }
-                
-                routeDemand = route.reduce((sum, point) => sum + point.demand, 0);
-                
-                routesHtml += `
-                    <div class="route-item">
-                        <div class="route-number" style="background: ${color};">${idx + 1}</div>
-                        <div style="flex: 1;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-                                <div>
-                                    <strong style="color: #333;">Vehicle ${idx + 1}</strong>
-                                    <div style="font-size: 0.9rem; color: #666;">
-                                        <span style="color: ${color};"><i class="fas fa-route"></i> ${routeDistance.toFixed(2)} km</span>
-                                        <span style="margin-left: 20px;"><i class="fas fa-weight-hanging"></i> ${routeDemand}/${capacity} kg</span>
-                                    </div>
-                                </div>
-                                <div style="font-size: 0.9rem; color: ${color}; font-weight: 600;">
-                                    ${((routeDemand / capacity) * 100).toFixed(1)}% loaded
-                                </div>
-                            </div>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 10px;">
-                                <strong>Route:</strong> ${depot.name} → 
-                                ${route.map((p, i) => 
-                                    `${p.name}${i < route.length - 1 ? ' → ' : ''}`
-                                ).join('')} 
-                                → ${depot.name}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            routesContainer.innerHTML = routesHtml;
-            
-            // Afficher le panneau de résultats
-            document.getElementById('resultsPanel').style.display = 'block';
-            showNotification('Routes optimized successfully!', 'success');
-        }
-        
-        // Initialiser l'application
-        function initApp() {
-            initDepot();
-            renderDeliveryList();
-            
-            // Ajouter des exemples de points de livraison
-            const exampleDeliveries = [
-                { name: "Customer A", lat: 48.8600, lon: 2.3500, demand: 20 },
-                { name: "Customer B", lat: 48.8500, lon: 2.3400, demand: 15 },
-                { name: "Customer C", lat: 48.8700, lon: 2.3600, demand: 30 },
-                { name: "Customer D", lat: 48.8450, lon: 2.3650, demand: 25 },
-                { name: "Customer E", lat: 48.8650, lon: 2.3300, demand: 18 }
-            ];
-            
-            // Commenter cette ligne pour ne pas charger les exemples automatiquement
-            // deliveries = exampleDeliveries.map((d, i) => ({ ...d, id: Date.now() + i, addedAt: new Date().toLocaleTimeString() }));
-            // deliveries.forEach(d => addMarkerToMap(d));
-            // renderDeliveryList();
-        }
-        
-        // Démarrer l'application
-        window.onload = initApp;
-    </script>
-</body>
-</html>
-"""
-
-# Interface Streamlit améliorée
-st.markdown(css, unsafe_allow_html=True)
-
-# Header principal
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st.markdown("""
-    <div class="main-header">
-        <h1 style="text-align: center; margin-bottom: 1rem;">🚚 VRP Route Optimizer</h1>
-        <p style="text-align: center; font-size: 1.2rem; opacity: 0.9;">
-        Intelligent Vehicle Routing Problem Solver with Real-time Optimization
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Métriques en haut
-if st.button("🎯 Quick Optimize", use_container_width=True):
-    st.success("Routes optimized successfully!")
-
-col1, col2, col3, col4 = st.columns(4)
-with col1:
-    st.markdown("""
-    <div class="metric-card">
-        <div class="metric-value">5</div>
-        <div class="metric-label">Delivery Points</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col2:
-    st.markdown("""
-    <div class="metric-card">
-        <div class="metric-value">3</div>
-        <div class="metric-label">Routes</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col3:
-    st.markdown("""
-    <div class="metric-card">
-        <div class="metric-value">42.5 km</div>
-        <div class="metric-label">Total Distance</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-with col4:
-    st.markdown("""
-    <div class="metric-card">
-        <div class="metric-value">87%</div>
-        <div class="metric-label">Efficiency</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Interface principale avec tabs
-tab1, tab2, tab3 = st.tabs(["🗺️ Interactive Map", "⚙️ Configuration", "📊 Results"])
-
-with tab1:
-    # Afficher la carte interactive
-    components.html(html_content, height=900, scrolling=True)
-
-with tab2:
-    # Configuration avancée
-    st.markdown("""
-    <div class="card">
-        <h3>⚙️ Advanced Configuration</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📦 Vehicle Settings")
-        vehicle_capacity = st.slider("Vehicle Capacity (kg)", 50, 500, 100, 10)
-        max_vehicles = st.slider("Maximum Vehicles", 1, 10, 3)
-        fuel_cost = st.number_input("Fuel Cost per km ($)", 0.1, 2.0, 0.5, 0.1)
-        
-    with col2:
-        st.subheader("⏱️ Time Constraints")
-        max_route_time = st.slider("Maximum Route Time (hours)", 1, 12, 8)
-        service_time = st.slider("Service Time per Stop (minutes)", 5, 60, 15, 5)
-        time_windows = st.checkbox("Enable Time Windows")
-        
-    st.subheader("📋 Delivery Points")
-    with st.expander("Import/Export Data", expanded=True):
-        uploaded_file = st.file_uploader("Upload CSV with delivery points", type=['csv'])
-        if uploaded_file:
-            st.success(f"File {uploaded_file.name} uploaded successfully!")
-        
-        if st.button("📥 Export Results as CSV"):
-            st.info("Results exported successfully!")
-
-with tab3:
-    # Résultats détaillés
-    st.markdown("""
-    <div class="card">
-        <h3>📊 Detailed Results Analysis</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # Graphiques de résultats
-    import pandas as pd
-    import numpy as np
-    
-    # Données d'exemple
-    results_data = pd.DataFrame({
-        'Route': ['Route 1', 'Route 2', 'Route 3'],
-        'Distance (km)': [15.2, 18.7, 8.6],
-        'Load (%)': [85, 92, 78],
-        'Stops': [4, 5, 3],
-        'Cost ($)': [45.6, 56.1, 25.8]
-    })
-    
-    st.dataframe(results_data, use_container_width=True)
-    
-    # Graphique
-    chart_data = pd.DataFrame(
-        np.random.randn(20, 3),
-        columns=['Distance', 'Efficiency', 'Cost']
-    )
-    
-    st.line_chart(chart_data)
-
-# Sidebar pour les actions rapides
-with st.sidebar:
-    st.markdown("""
-    <div class="card">
-        <h3>🚀 Quick Actions</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    if st.button("🔄 Reset All", use_container_width=True, type="secondary"):
-        st.rerun()
-    
-    if st.button("📤 Export Report", use_container_width=True):
-        st.success("Report exported!")
-    
-    if st.button("📧 Share Results", use_container_width=True):
-        st.info("Sharing options opened!")
-    
-    st.markdown("---")
-    
-    st.markdown("""
-    <div class="card">
-        <h4>ℹ️ About</h4>
-        <p style="font-size: 0.9rem; color: #666;">
-        This VRP optimizer uses advanced algorithms to solve complex routing problems efficiently.
-        </p>
-        <p style="font-size: 0.8rem; color: #999; margin-top: 1rem;">
-        Version 2.0 • Powered by Streamlit
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Note finale
-st.markdown("---")
-st.markdown("""
-<div style="text-align: center; color: #666; font-size: 0.9rem; padding: 2rem;">
-    <p>🚚 <strong>VRP Route Optimizer</strong> • Intelligent Routing Solutions</p>
-    <p style="font-size: 0.8rem;">Optimize your delivery routes with AI-powered algorithms</p>
-</div>
-""", unsafe_allow_html=True)
+                // Continuer à ajouter des points
+                while (unvisited.length > 
