@@ -169,7 +169,7 @@ st.markdown("""
 </style>
 """
 # HTML/JavaScript avec fonctionnalité de sélection sur carte
-html_content = '''
+html_content = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
