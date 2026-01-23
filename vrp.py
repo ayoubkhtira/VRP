@@ -13,6 +13,8 @@ st.set_page_config(
 
 #partie CSS
 
+# ... (le reste du code précédent reste inchangé)
+
 st.markdown("""
 <style>
     /* Variables CSS */
@@ -33,24 +35,17 @@ st.markdown("""
     
     /* Styles généraux */
     .stApp {
-        background-image: url('https://image.freepik.com/vrije-photo/transport-en-logistiek_37416-134.jpg');
+        background: 
+            linear-gradient(
+                rgba(102, 51, 153, 0.85),  /* Violet avec 85% d'opacité */
+                rgba(102, 51, 153, 0.85)
+            ),
+            url('https://image.freepik.com/vrije-photo/transport-en-logistiek_37416-134.jpg');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
         background-attachment: fixed;
         min-height: 100vh;
-    }
-    
-    /* Overlay pour améliorer la lisibilité */
-    .stApp::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(255, 255, 255, 0.85);
-        z-index: -1;
     }
     
     /* Header principal */
@@ -64,7 +59,8 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.2);
         animation: slideDown 0.8s ease-out;
     }
-    
+
+
     @keyframes slideDown {
         from { opacity: 0; transform: translateY(-30px); }
         to { opacity: 1; transform: translateY(0); }
