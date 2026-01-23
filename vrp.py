@@ -33,7 +33,7 @@ st.markdown("""
     
     /* Styles généraux */
     .stApp {
-        background-image: url('pages/img.jpg');
+        background-image: url('pages/img5.jpg');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
