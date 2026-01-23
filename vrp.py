@@ -33,7 +33,7 @@ st.markdown("""
     
     /* Styles généraux */
     .stApp {
-        background-image: url('pages/img5.jpg');
+        background-image: url('https://image.freepik.com/vrije-photo/transport-en-logistiek_37416-134.jpg');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
