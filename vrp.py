@@ -764,7 +764,7 @@ html_content = """
                     </div>
                     <h1>VRP Route Optimizer</h1>
                     <p class="subtitle">
-                        Advanced Vehicle Routing Problem Solver with Interactive Map Selection
+                        Vehicle Routing Problem Solver
                     </p>
                 </div>
             </div>
